@@ -27,7 +27,10 @@ public class DailyData {
     private BigDecimal turnover;
     private Integer trans;
     private String diff;
+
+    @Column(name = "`range`")
     private BigDecimal range;
+
     private String diffPerc;
     private BigDecimal rangePerc;
     private String vwapPerc;

@@ -12,8 +12,10 @@ import java.net.UnknownHostException;
 
 @SpringBootApplication
 @EnableConfigurationProperties
-@EntityScan(basePackages = "com.stockmanagment.porfoliomanagment.model.nepse")
-
+@EntityScan(basePackages = {
+		"com.stockmanagment.porfoliomanagment.model.nepse",
+		"com.stockmanagment.porfoliomanagment.model.portfolio"
+})
 public class PorfoliomanagmentApplication implements CommandLineRunner {
 	@Autowired
 	private Environment environment;

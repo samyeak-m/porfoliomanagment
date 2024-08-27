@@ -1,21 +1,22 @@
 package com.stockmanagment.porfoliomanagment.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import jakarta.persistence.EntityManagerFactory;
-import javax.sql.DataSource;
-import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+import javax.sql.DataSource;
 import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 @EnableTransactionManagement
@@ -23,37 +24,37 @@ import java.util.Map;
         basePackages = "com.stockmanagment.porfoliomanagment.repository.portfolio",
         entityManagerFactoryRef = "portfolioEntityManagerFactory",
         transactionManagerRef = "portfolioTransactionManager"
+
 )
 public class PortfolioDatabaseConfig {
 
+    @Primary
     @Bean(name = "portfolioDataSource")
-    public DataSource portfolioDataSource() {
-        return DataSourceBuilder.create()
-                .url("jdbc:mysql://localhost:3306/portfolio")
-                .username("root")
-                .password("")
-                .driverClassName("com.mysql.cj.jdbc.Driver")
-                .build();
+    @ConfigurationProperties(prefix = "spring.datasource.portfolio")
+    public DataSource dataSource(){
+        return DataSourceBuilder.create().build();
     }
 
+    @Primary
     @Bean(name = "portfolioEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean portfolioEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
             @Qualifier("portfolioDataSource") DataSource dataSource) {
-        Map<String, String> nepseJpaProperties = new HashMap<>();
-        nepseJpaProperties.put("hibernate.hbm2ddl.auto", "validate");
-        nepseJpaProperties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        HashMap<String, Object> portfolioJpaProperties = new HashMap<>();
+        portfolioJpaProperties.put("hibernate.hbm2ddl.auto", "update");
 
         return builder
                 .dataSource(dataSource)
-                .packages("com.stockmanagment.porfoliomanagment.model.portfolio")
+                .properties(portfolioJpaProperties)
+                .packages("com.stockmanagment.porfoliomanagment.model.portfolio") // Fixed package path
                 .persistenceUnit("portfolio")
                 .build();
     }
 
+    @Primary
     @Bean(name = "portfolioTransactionManager")
     public PlatformTransactionManager portfolioTransactionManager(
-            @Qualifier("portfolioEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
-        return new JpaTransactionManager(entityManagerFactory);
+            @Qualifier("portfolioEntityManagerFactory") EntityManagerFactory portfolioEntityManagerFactory) {
+        return new JpaTransactionManager(portfolioEntityManagerFactory);
     }
 }
