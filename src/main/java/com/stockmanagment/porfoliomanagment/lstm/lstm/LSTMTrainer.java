@@ -1,4 +1,5 @@
-package com.stockmanagment.porfoliomanagment.prediction.lstm;
+package com.stockmanagment.porfoliomanagment.lstm.lstm;
+
 
 public class LSTMTrainer {
     private final LSTMNetwork lstm;

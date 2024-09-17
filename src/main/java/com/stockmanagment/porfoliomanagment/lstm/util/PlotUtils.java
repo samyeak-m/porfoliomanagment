@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.prediction.util;
+package com.stockmanagment.porfoliomanagment.lstm.util;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;

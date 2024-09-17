@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.prediction.util;
+package com.stockmanagment.porfoliomanagment.lstm.util;
 
 public class TechnicalIndicators {
 

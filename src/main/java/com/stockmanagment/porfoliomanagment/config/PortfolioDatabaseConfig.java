@@ -28,14 +28,12 @@ import java.util.HashMap;
 )
 public class PortfolioDatabaseConfig {
 
-    @Primary
     @Bean(name = "portfolioDataSource")
     @ConfigurationProperties(prefix = "spring.datasource.portfolio")
     public DataSource dataSource(){
         return DataSourceBuilder.create().build();
     }
 
-    @Primary
     @Bean(name = "portfolioEntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean portfolioEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
@@ -51,7 +49,6 @@ public class PortfolioDatabaseConfig {
                 .build();
     }
 
-    @Primary
     @Bean(name = "portfolioTransactionManager")
     public PlatformTransactionManager portfolioTransactionManager(
             @Qualifier("portfolioEntityManagerFactory") EntityManagerFactory portfolioEntityManagerFactory) {

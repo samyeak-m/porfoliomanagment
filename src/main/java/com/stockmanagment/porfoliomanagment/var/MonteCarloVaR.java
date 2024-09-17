@@ -16,7 +16,7 @@ public class MonteCarloVaR {
         String blue = "\u001B[34m";
         String reset = "\u001B[0m";
 
-        String url = "jdbc:mysql://localhost:3306/nepse_test";
+        String url = "jdbc:mysql://localhost:3306/nepse";
         String user = "root";
         String password = "";
 

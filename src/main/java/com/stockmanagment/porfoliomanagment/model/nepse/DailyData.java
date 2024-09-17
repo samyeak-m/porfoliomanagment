@@ -3,6 +3,8 @@ package com.stockmanagment.porfoliomanagment.model.nepse;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.sql.Timestamp;
+
 
 @Entity
 @Table(name = "daily_data", uniqueConstraints = {
@@ -14,7 +16,8 @@ public class DailyData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private Date date;
+    @Column(name = "date")
+    private Timestamp date;
     private String symbol;
     private BigDecimal conf;
     private BigDecimal open;
@@ -51,7 +54,7 @@ public class DailyData {
         return date;
     }
 
-    public void setDate(Date date) {
+    public void setDate(Timestamp date) {
         this.date = date;
     }
 

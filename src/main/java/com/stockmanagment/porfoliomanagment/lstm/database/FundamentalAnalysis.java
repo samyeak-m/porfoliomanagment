@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.prediction.database;
+package com.stockmanagment.porfoliomanagment.lstm.database;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

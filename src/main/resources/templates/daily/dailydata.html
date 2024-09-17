@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Data Viewer</title>
+  <link rel="stylesheet" href="css/daily/dailydata.css">
+</head>
+<body>
+<main>
+  <section>
+    <form id="stock-form">
+      <label for="symbol">Stock Symbol:</label>
+      <input type="text" id="symbol" name="symbol" required>
+
+      <label for="start-date">Start Date:</label>
+      <input type="date" id="start-date" name="start-date" required>
+
+      <label for="end-date">End Date:</label>
+      <input type="date" id="end-date" name="end-date" required>
+
+      <button type="submit">Get Stock Data</button>
+    </form>
+  </section>
+  <section id="stock-data">
+    <!-- Data will be inserted here -->
+  </section>
+</main>
+<script src="js/daily/dailydata.js"></script>
+</body>
+</html>

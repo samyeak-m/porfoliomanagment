@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.prediction.util;
+package com.stockmanagment.porfoliomanagment.lstm.util;
 
 import java.io.FileWriter;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.prediction.lstm;
+package com.stockmanagment.porfoliomanagment.lstm.lstm;
 
 import java.io.*;
 import java.util.Arrays;
@@ -42,8 +42,12 @@ public class LSTMNetwork implements Serializable {
     private double[] dOutputGate;
     private double[] dCellGate;
     private double[] dOutput;
+    private double[] min;
+    private double[] max;
 
-    public LSTMNetwork(int inputSize, int hiddenSize, int outputSize, int denseSize) {
+    public LSTMNetwork(int inputSize, int hiddenSize, int outputSize, int denseSize, double[] min, double[] max) {
+        this.min = min;
+        this.max = max;
         this.inputSize = inputSize;
         this.hiddenSize = hiddenSize;
         this.denseSize = denseSize;
@@ -77,7 +81,6 @@ public class LSTMNetwork implements Serializable {
         weightsOutput = new double[outputSize][hiddenSize];
         biasOutput = new double[outputSize];
 
-        // Initialize weights with small random values
         for (int i = 0; i < hiddenSize; i++) {
             for (int j = 0; j < inputSize; j++) {
                 weightsInputGate[i][j] = random.nextGaussian() * Math.sqrt(2.0 / (inputSize + hiddenSize));
@@ -208,6 +211,7 @@ public class LSTMNetwork implements Serializable {
             output = leakyRelu(dotProduct(weightsOutput, output));
         }
 
+
         if (output == null) {
             System.err.println("Error: Output is null after forward pass");
             return null;
@@ -311,7 +315,7 @@ public class LSTMNetwork implements Serializable {
             return;
         }
 
-        clipGradients(gradients, 5.0);
+        clipGradients(gradients, 20);
 
         double[][] dWeightsOutput = outerProduct(dOutput, hiddenState);
         double[][] dWeightsInputGate = outerProduct(dInputGate, input);
@@ -501,10 +505,8 @@ public class LSTMNetwork implements Serializable {
         return result;
     }
 
-
-    public void resetState() {
-        hiddenState = new double[hiddenSize];
-        cellState = new double[hiddenSize];
+    public void setMin(double[] min) {
+        this.min = min;
     }
 
     public void saveModel(String filePath) {
@@ -521,13 +523,20 @@ public class LSTMNetwork implements Serializable {
     public static LSTMNetwork loadModel(String filePath) {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filePath))) {
             System.out.println("Model loading");
-            return (LSTMNetwork) ois.readObject();
+            LSTMNetwork model = (LSTMNetwork) ois.readObject();
+
+            if (model.getMin() == null || model.getMax() == null) {
+                System.err.println("Model loaded, but min and max values are not initialized.");
+            }
+
+            return model;
         } catch (IOException | ClassNotFoundException e) {
             System.err.println(e);
             System.out.println("Creating model");
             return null;
         }
     }
+
 
     public int getHiddenSize() {
         return hiddenSize;
@@ -539,6 +548,14 @@ public class LSTMNetwork implements Serializable {
 
     public double[] getCellState() {
         return cellState;
+    }
+
+    public double[] getMin() {
+        return min;
+    }
+
+    public double[] getMax() {
+        return max;
     }
 
 }

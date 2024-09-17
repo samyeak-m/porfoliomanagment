@@ -1,0 +1,73 @@
+main {
+    padding: 2rem;
+}
+
+form {
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 80dvw;
+    margin: 0 auto;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-evenly;
+}
+
+label {
+    display: block;
+    margin: 0.5rem 0;
+}
+
+input[type="text"],
+input[type="date"] {
+    width: 15dvw;
+    padding: 0.5rem;
+    margin: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Focus effect for text and date inputs */
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="text"]:hover,
+input[type="date"]:hover {
+    border: 2px solid #0035a6;
+    outline: none;
+}
+
+
+
+button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#stock-data {
+    margin-top: 2rem;
+}
+
+#stock-data table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#stock-data th,
+#stock-data td {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+#stock-data th {
+    background-color: #f4f4f4;
+}

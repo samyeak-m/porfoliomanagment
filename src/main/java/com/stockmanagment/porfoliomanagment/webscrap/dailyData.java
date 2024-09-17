@@ -29,8 +29,8 @@ public class dailyData {
     private static final String DB_USER = "root";
     private static final String DB_PASS = "";
     private static final long INTERVAL = 60000;
-    private static final LocalTime START_OF_DAY = LocalTime.of(10, 00);
-    private static final LocalTime END_OF_DAY = LocalTime.of(13, 01);
+    private static final LocalTime START_OF_DAY = LocalTime.of(10, 45);
+    private static final LocalTime END_OF_DAY = LocalTime.of(15, 15);
 
     private static String lastHash = "";
 

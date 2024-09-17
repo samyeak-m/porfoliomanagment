@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.prediction.util;
+package com.stockmanagment.porfoliomanagment.lstm.util;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;
@@ -17,8 +17,9 @@ import java.util.List;
 
 public class CustomChartUtils {
 
-    public static void saveAccuracyChart(String title, List<Integer> epochs, List<Double> accuracy, List<Double> validationAccuracy, String filePath, String xAxisLabel, String yAxisLabel) {
-        int tickInterval = 10;
+
+    public static void saveAccuracyChart(String title, List<Integer> epochs, List<Double> accuracy, List<Double> validationAccuracy, String filePath, String xAxisLabel, String yAxisLabel,int interval) {
+        int tickInterval = interval;
 
         XYSeries accuracySeries = new XYSeries("Training Accuracy");
         XYSeries validationAccuracySeries = new XYSeries("Validation Accuracy");
@@ -54,8 +55,8 @@ public class CustomChartUtils {
         saveChart(chart, filePath);
     }
 
-    public static void saveLossChart(String title, List<Integer> epochs, List<Double> loss, List<Double> validationLoss, String filePath, String xAxisLabel, String yAxisLabel) {
-        int tickInterval = 3;  // Set the tick interval here
+    public static void saveLossChart(String title, List<Integer> epochs, List<Double> loss, List<Double> validationLoss, String filePath, String xAxisLabel, String yAxisLabel,int interval) {
+        int tickInterval = interval;
 
         XYSeries lossSeries = new XYSeries("Training Loss");
         XYSeries validationLossSeries = new XYSeries("Validation Loss");

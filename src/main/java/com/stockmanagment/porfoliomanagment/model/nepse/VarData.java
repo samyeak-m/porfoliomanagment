@@ -11,15 +11,31 @@ public class VarData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
+    @Column(name = "stock_symbol")
     private String stockSymbol;
+
+    @Column(name = "date")
     private Timestamp date;
+
+    @Column(name = "days_of_investment")
     private int daysOfInvestment;
+
+    @Column(name = "mean_return")
     private double meanReturn;
+
+    @Column(name = "volatility")
     private double volatility;
+
+    @Column(name = "var")
     private double var;
+
+    @Column(name = "initial_stock_price")
     private double initialStockPrice;
+
+    @Column(name = "confidence_level")
     private double confidenceLevel;
 
+    // Getters and setters
     public int getId() {
         return id;
     }
