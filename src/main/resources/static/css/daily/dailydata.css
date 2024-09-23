@@ -69,5 +69,6 @@ button:hover {
 }
 
 #stock-data th {
+    width: 100px;
     background-color: #f4f4f4;
 }

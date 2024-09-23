@@ -2,7 +2,7 @@ package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "histock_data")
@@ -12,12 +12,25 @@ public class HistockData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private Date date;
+    @Column(name = "date")
+    private LocalDate date;
+
+    @Column(name = "symbol")
     private String symbol;
-    private BigDecimal open;
-    private BigDecimal high;
-    private BigDecimal low;
-    private BigDecimal close;
+
+    @Column(name = "open")
+    private double open;
+
+    @Column(name = "high")
+    private double high;
+
+    @Column(name = "low")
+    private double low;
+
+    @Column(name = "close")
+    private double close;
+
+    // Getters and Setters
 
     public int getId() {
         return id;
@@ -27,11 +40,11 @@ public class HistockData {
         this.id = id;
     }
 
-    public Date getDate() {
+    public LocalDate getDate() {
         return date;
     }
 
-    public void setDate(Date date) {
+    public void setDate(LocalDate date) {
         this.date = date;
     }
 
@@ -43,35 +56,35 @@ public class HistockData {
         this.symbol = symbol;
     }
 
-    public BigDecimal getOpen() {
+    public Double getOpen() {
         return open;
     }
 
-    public void setOpen(BigDecimal open) {
+    public void setOpen(Double open) {
         this.open = open;
     }
 
-    public BigDecimal getHigh() {
+    public double getHigh() {
         return high;
     }
 
-    public void setHigh(BigDecimal high) {
+    public void setHigh(double high) {
         this.high = high;
     }
 
-    public BigDecimal getLow() {
+    public double getLow() {
         return low;
     }
 
-    public void setLow(BigDecimal low) {
+    public void setLow(double low) {
         this.low = low;
     }
 
-    public BigDecimal getClose() {
+    public double getClose() {
         return close;
     }
 
-    public void setClose(BigDecimal close) {
+    public void setClose(double close) {
         this.close = close;
     }
 }

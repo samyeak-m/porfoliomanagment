@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -56,10 +59,9 @@ public class DailyDataService {
     }
 
     public void startScrapingAfterDelay() {
-        // Starting scraping after 10 seconds to ensure server is ready
         new Thread(() -> {
             try {
-                Thread.sleep(300000);
+                Thread.sleep(10000);
                 scrapeAndStoreDailyData();
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -136,25 +138,28 @@ public class DailyDataService {
 
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now()); // Current timestamp with date and time
 
+            LocalDate localDate = LocalDate.from(timestamp.toLocalDateTime());
+
             DailyData existingData = customDailyDataRepository.getBySymbol(symbol);
 
             if (existingData != null) {
                 // Update existing record
-                existingData.setOpen(BigDecimal.valueOf(open));
-                existingData.setHigh(BigDecimal.valueOf(high));
-                existingData.setLow(BigDecimal.valueOf(low));
-                existingData.setClose(BigDecimal.valueOf(close));
+                existingData.setOpen(Double.valueOf(open));
+                existingData.setHigh(Double.valueOf(high));
+                existingData.setLow(Double.valueOf(low));
+                existingData.setClose(Double.valueOf(close));
+                existingData.setDate(localDate);
                 // Set other fields as needed
                 dailyDataRepository.save(existingData);
             } else {
                 // Insert new record
                 DailyData dailyData = new DailyData();
-                dailyData.setDate(timestamp);
+                dailyData.setDate(localDate);
                 dailyData.setSymbol(symbol);
-                dailyData.setOpen(BigDecimal.valueOf(open));
-                dailyData.setHigh(BigDecimal.valueOf(high));
-                dailyData.setLow(BigDecimal.valueOf(low));
-                dailyData.setClose(BigDecimal.valueOf(close));
+                dailyData.setOpen(Double.valueOf(open));
+                dailyData.setHigh(Double.valueOf(high));
+                dailyData.setLow(Double.valueOf(low));
+                dailyData.setClose(Double.valueOf(close));
                 // Set other fields as needed
                 dailyDataRepository.save(dailyData);
             }
@@ -202,11 +207,26 @@ public class DailyDataService {
         lastUpdateOfTheDay = LocalDateTime.now();
     }
 
-    // Fetch data by symbol and date range
     public List<DailyData> getDailyDataBySymbolAndDateRange(String symbol, LocalDate startDate, LocalDate endDate) {
-        Timestamp startTimestamp = Timestamp.valueOf(startDate.atStartOfDay());
-        Timestamp endTimestamp = Timestamp.valueOf(endDate.atTime(23, 59, 59));
+        Timestamp startTimestamp = startDate != null ? Timestamp.valueOf(startDate.atStartOfDay()) : null;
+        Timestamp endTimestamp = endDate != null ? Timestamp.valueOf(endDate.atTime(23, 59, 59)) : Timestamp.valueOf(LocalDateTime.now());
         return customDailyDataRepository.getByDateRangeAndSymbol(symbol, startTimestamp, endTimestamp);
+    }
+
+    public List<String> getAllAvailableSymbols() {
+        return customDailyDataRepository.getAllSymbolsFromDailyData();
+    }
+
+    // Handle dynamic requests
+    public List<DailyData> handleDynamicRequest(String symbol, LocalDate startDate, LocalDate endDate) {
+        if (symbol == null && startDate == null && endDate == null) {
+            return getDailyDataBySymbolAndDateRange(null, null, null); // Load all data
+        } else if (symbol != null && startDate == null && endDate == null) {
+            return List.of(customDailyDataRepository.getBySymbol(symbol));
+        } else if (startDate != null && endDate == null) {
+            endDate = LocalDate.now(); // Set end date to current date
+        }
+        return getDailyDataBySymbolAndDateRange(symbol, startDate, endDate);
     }
 
 }

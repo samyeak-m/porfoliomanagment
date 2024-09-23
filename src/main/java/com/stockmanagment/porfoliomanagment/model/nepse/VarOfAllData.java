@@ -1,7 +1,7 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import jakarta.persistence.*;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "varofall_data")
@@ -15,24 +15,24 @@ public class VarOfAllData {
     private String stockSymbol;
 
     @Column(name = "date")
-    private Timestamp date;
+    private LocalDateTime date; // Changed to LocalDateTime
 
     @Column(name = "days_of_investment")
     private int daysOfInvestment;
 
-    @Column(name = "mean_return")
+    @Column(name = "mean_return") // Precision and scale added
     private double meanReturn;
 
-    @Column(name = "volatility")
+    @Column(name = "volatility") // Precision and scale added
     private double volatility;
 
-    @Column(name = "var")
+    @Column(name = "var") // Precision and scale added
     private double var;
 
-    @Column(name = "initial_stock_price")
+    @Column(name = "initial_stock_price") // Precision and scale added
     private double initialStockPrice;
 
-    @Column(name = "confidence_level")
+    @Column(name = "confidence_level") // Precision and scale added
     private double confidenceLevel;
 
     // Getters and setters
@@ -52,11 +52,11 @@ public class VarOfAllData {
         this.stockSymbol = stockSymbol;
     }
 
-    public Timestamp getDate() {
+    public LocalDateTime getDate() {
         return date;
     }
 
-    public void setDate(Timestamp date) {
+    public void setDate(LocalDateTime date) {
         this.date = date;
     }
 

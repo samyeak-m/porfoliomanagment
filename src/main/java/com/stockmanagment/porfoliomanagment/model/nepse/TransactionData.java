@@ -1,8 +1,7 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "transaction_data")
@@ -12,15 +11,26 @@ public class TransactionData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private Timestamp timestamp;
+    private LocalDateTime timestamp; // Changed to LocalDateTime
     private String symbol;
-    private BigDecimal ltp;
+
+    
+    private Double ltp;
+
     private String pointChange;
     private String perChange;
-    private BigDecimal open;
-    private BigDecimal high;
-    private BigDecimal low;
-    private BigDecimal prevClose;
+
+    
+    private Double open;
+
+    
+    private Double high;
+
+    
+    private Double low;
+
+    
+    private Double prevClose;
 
     public int getId() {
         return id;
@@ -30,11 +40,11 @@ public class TransactionData {
         this.id = id;
     }
 
-    public Timestamp getTimestamp() {
+    public LocalDateTime getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(Timestamp timestamp) {
+    public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
     }
 
@@ -46,11 +56,11 @@ public class TransactionData {
         this.symbol = symbol;
     }
 
-    public BigDecimal getLtp() {
+    public Double getLtp() {
         return ltp;
     }
 
-    public void setLtp(BigDecimal ltp) {
+    public void setLtp(Double ltp) {
         this.ltp = ltp;
     }
 
@@ -70,35 +80,35 @@ public class TransactionData {
         this.perChange = perChange;
     }
 
-    public BigDecimal getOpen() {
+    public Double getOpen() {
         return open;
     }
 
-    public void setOpen(BigDecimal open) {
+    public void setOpen(Double open) {
         this.open = open;
     }
 
-    public BigDecimal getHigh() {
+    public Double getHigh() {
         return high;
     }
 
-    public void setHigh(BigDecimal high) {
+    public void setHigh(Double high) {
         this.high = high;
     }
 
-    public BigDecimal getLow() {
+    public Double getLow() {
         return low;
     }
 
-    public void setLow(BigDecimal low) {
+    public void setLow(Double low) {
         this.low = low;
     }
 
-    public BigDecimal getPrevClose() {
+    public Double getPrevClose() {
         return prevClose;
     }
 
-    public void setPrevClose(BigDecimal prevClose) {
+    public void setPrevClose(Double prevClose) {
         this.prevClose = prevClose;
     }
 }

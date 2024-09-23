@@ -1,7 +1,7 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import jakarta.persistence.*;
-import java.sql.Date;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "predictions")
@@ -12,11 +12,20 @@ public class Predictions {
     private int id;
 
     private String stockSymbol;
-    private double pointChange;
-    private double priceChange;
-    private double prediction;
-    private double lastClose;
-    private Date predictionDate;
+
+    
+    private Double pointChange;
+
+    
+    private Double priceChange;
+
+    
+    private Double prediction;
+
+    
+    private Double lastClose;
+
+    private LocalDate predictionDate; // Changed to LocalDate
 
     public int getId() {
         return id;
@@ -34,43 +43,43 @@ public class Predictions {
         this.stockSymbol = stockSymbol;
     }
 
-    public double getPointChange() {
+    public Double getPointChange() {
         return pointChange;
     }
 
-    public void setPointChange(double pointChange) {
+    public void setPointChange(Double pointChange) {
         this.pointChange = pointChange;
     }
 
-    public double getPriceChange() {
+    public Double getPriceChange() {
         return priceChange;
     }
 
-    public void setPriceChange(double priceChange) {
+    public void setPriceChange(Double priceChange) {
         this.priceChange = priceChange;
     }
 
-    public double getPrediction() {
+    public Double getPrediction() {
         return prediction;
     }
 
-    public void setPrediction(double prediction) {
+    public void setPrediction(Double prediction) {
         this.prediction = prediction;
     }
 
-    public double getLastClose() {
+    public Double getLastClose() {
         return lastClose;
     }
 
-    public void setLastClose(double lastClose) {
+    public void setLastClose(Double lastClose) {
         this.lastClose = lastClose;
     }
 
-    public Date getPredictionDate() {
+    public LocalDate getPredictionDate() {
         return predictionDate;
     }
 
-    public void setPredictionDate(Date predictionDate) {
+    public void setPredictionDate(LocalDate predictionDate) {
         this.predictionDate = predictionDate;
     }
 }

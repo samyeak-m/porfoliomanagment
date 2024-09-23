@@ -3,41 +3,69 @@ package com.stockmanagment.porfoliomanagment.controller.portfolio;
 import com.stockmanagment.porfoliomanagment.model.portfolio.UserDetail;
 import com.stockmanagment.porfoliomanagment.service.portfolio.UserDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Optional;
 
-@RestController
-@RequestMapping("/api/user-details")
+@Controller
+@RequestMapping("/api/auth")
 public class UserDetailController {
 
     @Autowired
     private UserDetailService userDetailService;
 
-    @GetMapping
+    public UserDetailController(UserDetailService userDetailService) {
+        this.userDetailService = userDetailService;
+    }
+
+    @GetMapping("/user-details")
     public List<UserDetail> getAllUserDetails() {
         return userDetailService.getAllUserDetails();
     }
 
-    @GetMapping("/{id}")
-    public Optional<UserDetail> getUserDetailById(@PathVariable int id) {
-        return userDetailService.getUserDetailById(id);
+    @GetMapping("/user-details/{id}")
+    public ResponseEntity<UserDetail> getUserDetailById(@PathVariable int id) {
+        Optional<UserDetail> userDetail = userDetailService.getUserDetailById(id);
+        return userDetail.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PostMapping
-    public UserDetail createUserDetail(@RequestBody UserDetail userDetail) {
-        return userDetailService.saveUserDetail(userDetail);
+    @PostMapping("/signup")
+    public ResponseEntity<UserDetail> createUserDetail(@RequestBody UserDetail userDetail) {
+        UserDetail createdUser = userDetailService.saveUserDetail(userDetail);
+        return ResponseEntity.ok(createdUser);
     }
 
-    @PutMapping("/{id}")
-    public UserDetail updateUserDetail(@PathVariable int id, @RequestBody UserDetail userDetail) {
+    @PostMapping("/login")
+    public ResponseEntity<String> login(@RequestParam String email, @RequestParam String password, HttpSession session) {
+        Optional<UserDetail> userDetail = userDetailService.login(email, password);
+        if (userDetail.isPresent()) {
+            session.setAttribute("user", userDetail.get());
+            return ResponseEntity.ok("Login successful");
+        }
+        return ResponseEntity.status(401).body("Invalid email or password");
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpSession session) {
+        session.invalidate();
+        return ResponseEntity.ok("Logout successful");
+    }
+
+    @PutMapping("/user-details/{id}")
+    public ResponseEntity<UserDetail> updateUserDetail(@PathVariable int id, @RequestBody UserDetail userDetail) {
         userDetail.setId(id);
-        return userDetailService.saveUserDetail(userDetail);
+        UserDetail updatedUser = userDetailService.saveUserDetail(userDetail);
+        return ResponseEntity.ok(updatedUser);
     }
 
-    @DeleteMapping("/{id}")
-    public void deleteUserDetail(@PathVariable int id) {
+    @DeleteMapping("/user-details/{id}")
+    public ResponseEntity<Void> deleteUserDetail(@PathVariable int id) {
         userDetailService.deleteUserDetail(id);
+        return ResponseEntity.noContent().build();
     }
 }

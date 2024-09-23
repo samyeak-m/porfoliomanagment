@@ -2,7 +2,7 @@ package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "yearly_data")
@@ -12,12 +12,23 @@ public class YearlyData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private Date date;
+    @Column(name = "date")
+    private LocalDate date; // Changed to LocalDate
+
+    @Column(name = "symbol")
     private String symbol;
-    private BigDecimal open;
-    private BigDecimal high;
-    private BigDecimal low;
-    private BigDecimal close;
+
+    @Column(name = "open") // Precision and scale added
+    private Double open;
+
+    @Column(name = "high") // Precision and scale added
+    private Double high;
+
+    @Column(name = "low") // Precision and scale added
+    private Double low;
+
+    @Column(name = "close") // Precision and scale added
+    private Double close;
 
     public int getId() {
         return id;
@@ -27,11 +38,11 @@ public class YearlyData {
         this.id = id;
     }
 
-    public Date getDate() {
+    public LocalDate getDate() {
         return date;
     }
 
-    public void setDate(Date date) {
+    public void setDate(LocalDate date) {
         this.date = date;
     }
 
@@ -43,35 +54,35 @@ public class YearlyData {
         this.symbol = symbol;
     }
 
-    public BigDecimal getOpen() {
+    public Double getOpen() {
         return open;
     }
 
-    public void setOpen(BigDecimal open) {
+    public void setOpen(Double open) {
         this.open = open;
     }
 
-    public BigDecimal getHigh() {
+    public Double getHigh() {
         return high;
     }
 
-    public void setHigh(BigDecimal high) {
+    public void setHigh(Double high) {
         this.high = high;
     }
 
-    public BigDecimal getLow() {
+    public Double getLow() {
         return low;
     }
 
-    public void setLow(BigDecimal low) {
+    public void setLow(Double low) {
         this.low = low;
     }
 
-    public BigDecimal getClose() {
+    public Double getClose() {
         return close;
     }
 
-    public void setClose(BigDecimal close) {
+    public void setClose(Double close) {
         this.close = close;
     }
 }

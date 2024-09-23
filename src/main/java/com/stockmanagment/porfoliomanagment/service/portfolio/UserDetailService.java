@@ -29,4 +29,12 @@ public class UserDetailService {
     public void deleteUserDetail(int id) {
         userDetailRepository.deleteById(id);
     }
+
+    public Optional<UserDetail> login(String email, String password) {
+        UserDetail user = userDetailRepository.findByEmail(email);
+        if (user != null && user.getPassword().equals(password)) {
+            return Optional.of(user);
+        }
+        return Optional.empty();
+    }
 }

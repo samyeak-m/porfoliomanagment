@@ -1,10 +1,7 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.util.Date;
-import java.sql.Timestamp;
-
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "daily_data", uniqueConstraints = {
@@ -17,30 +14,67 @@ public class DailyData {
     private int id;
 
     @Column(name = "date")
-    private Timestamp date;
+    private LocalDate date;
+
+    @Column(name = "symbol")
     private String symbol;
-    private BigDecimal conf;
-    private BigDecimal open;
-    private BigDecimal high;
-    private BigDecimal low;
-    private BigDecimal close;
+
+    @Column(name = "conf")
+    private double conf;
+
+    @Column(name = "open")
+    private double open;
+
+    @Column(name = "high")
+    private double high;
+
+    @Column(name = "low")
+    private double low;
+
+    @Column(name = "close")
+    private double close;
+
+    @Column(name = "vwap")
     private String vwap;
-    private BigDecimal vol;
-    private BigDecimal prevClose;
-    private BigDecimal turnover;
+
+    @Column(name = "vol")
+    private double vol;
+
+    @Column(name = "prev_close")
+    private double prev_Close;
+
+    @Column(name = "turnover")
+    private double turnover;
+
+    @Column(name = "trans")
     private Integer trans;
+
+    @Column(name = "diff")
     private String diff;
 
     @Column(name = "`range`")
-    private BigDecimal range;
+    private double range;
 
-    private String diffPerc;
-    private BigDecimal rangePerc;
-    private String vwapPerc;
-    private BigDecimal days120;
-    private BigDecimal days180;
-    private BigDecimal weeks52High;
-    private BigDecimal weeks52Low;
+    @Column(name = "diff_perc")
+    private String diff_Perc;
+
+    @Column(name = "range_perc")
+    private double range_Perc;
+
+    @Column(name = "vwap_perc")
+    private String vwap_Perc;
+
+    @Column(name = "days_120")
+    private double days_120;
+
+    @Column(name = "days_180")
+    private double days_180;
+
+    @Column(name = "weeks_52_high")
+    private double weeks_52_High;
+
+    @Column(name = "weeks_52_low")
+    private double weeks_52_Low;
 
     public int getId() {
         return id;
@@ -50,11 +84,11 @@ public class DailyData {
         this.id = id;
     }
 
-    public Date getDate() {
+    public LocalDate getDate() {
         return date;
     }
 
-    public void setDate(Timestamp date) {
+    public void setDate(LocalDate date) {
         this.date = date;
     }
 
@@ -66,43 +100,43 @@ public class DailyData {
         this.symbol = symbol;
     }
 
-    public BigDecimal getConf() {
+    public double getConf() {
         return conf;
     }
 
-    public void setConf(BigDecimal conf) {
+    public void setConf(double conf) {
         this.conf = conf;
     }
 
-    public BigDecimal getOpen() {
+    public double getOpen() {
         return open;
     }
 
-    public void setOpen(BigDecimal open) {
+    public void setOpen(double open) {
         this.open = open;
     }
 
-    public BigDecimal getHigh() {
+    public double getHigh() {
         return high;
     }
 
-    public void setHigh(BigDecimal high) {
+    public void setHigh(double high) {
         this.high = high;
     }
 
-    public BigDecimal getLow() {
+    public double getLow() {
         return low;
     }
 
-    public void setLow(BigDecimal low) {
+    public void setLow(double low) {
         this.low = low;
     }
 
-    public BigDecimal getClose() {
+    public double getClose() {
         return close;
     }
 
-    public void setClose(BigDecimal close) {
+    public void setClose(double close) {
         this.close = close;
     }
 
@@ -114,27 +148,27 @@ public class DailyData {
         this.vwap = vwap;
     }
 
-    public BigDecimal getVol() {
+    public double getVol() {
         return vol;
     }
 
-    public void setVol(BigDecimal vol) {
+    public void setVol(double vol) {
         this.vol = vol;
     }
 
-    public BigDecimal getPrevClose() {
-        return prevClose;
+    public double getPrev_Close() {
+        return prev_Close;
     }
 
-    public void setPrevClose(BigDecimal prevClose) {
-        this.prevClose = prevClose;
+    public void setPrev_Close(double prev_Close) {
+        this.prev_Close = prev_Close;
     }
 
-    public BigDecimal getTurnover() {
+    public double getTurnover() {
         return turnover;
     }
 
-    public void setTurnover(BigDecimal turnover) {
+    public void setTurnover(double turnover) {
         this.turnover = turnover;
     }
 
@@ -154,67 +188,67 @@ public class DailyData {
         this.diff = diff;
     }
 
-    public BigDecimal getRange() {
+    public double getRange() {
         return range;
     }
 
-    public void setRange(BigDecimal range) {
+    public void setRange(double range) {
         this.range = range;
     }
 
-    public String getDiffPerc() {
-        return diffPerc;
+    public String getDiff_Perc() {
+        return diff_Perc;
     }
 
-    public void setDiffPerc(String diffPerc) {
-        this.diffPerc = diffPerc;
+    public void setDiff_Perc(String diff_Perc) {
+        this.diff_Perc = diff_Perc;
     }
 
-    public BigDecimal getRangePerc() {
-        return rangePerc;
+    public double getRange_Perc() {
+        return range_Perc;
     }
 
-    public void setRangePerc(BigDecimal rangePerc) {
-        this.rangePerc = rangePerc;
+    public void setRange_Perc(double range_Perc) {
+        this.range_Perc = range_Perc;
     }
 
-    public String getVwapPerc() {
-        return vwapPerc;
+    public String getVwap_Perc() {
+        return vwap_Perc;
     }
 
-    public void setVwapPerc(String vwapPerc) {
-        this.vwapPerc = vwapPerc;
+    public void setVwap_Perc(String vwap_Perc) {
+        this.vwap_Perc = vwap_Perc;
     }
 
-    public BigDecimal getDays120() {
-        return days120;
+    public double getDays_120() {
+        return days_120;
     }
 
-    public void setDays120(BigDecimal days120) {
-        this.days120 = days120;
+    public void setDays_120(double days_120) {
+        this.days_120 = days_120;
     }
 
-    public BigDecimal getDays180() {
-        return days180;
+    public double getDays_180() {
+        return days_180;
     }
 
-    public void setDays180(BigDecimal days180) {
-        this.days180 = days180;
+    public void setDays_180(double days_180) {
+        this.days_180 = days_180;
     }
 
-    public BigDecimal getWeeks52High() {
-        return weeks52High;
+    public double getWeeks_52_High() {
+        return weeks_52_High;
     }
 
-    public void setWeeks52High(BigDecimal weeks52High) {
-        this.weeks52High = weeks52High;
+    public void setWeeks_52_High(double weeks_52_High) {
+        this.weeks_52_High = weeks_52_High;
     }
 
-    public BigDecimal getWeeks52Low() {
-        return weeks52Low;
+    public double getWeeks_52_Low() {
+        return weeks_52_Low;
     }
 
-    public void setWeeks52Low(BigDecimal weeks52Low) {
-        this.weeks52Low = weeks52Low;
+    public void setWeeks_52_Low(double weeks_52_Low) {
+        this.weeks_52_Low = weeks_52_Low;
     }
 }
