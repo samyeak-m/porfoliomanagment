@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSTM Stock Predictions</title>
+    <link rel="stylesheet" href="/static/css/lstm/predict.css">
+</head>
+<body>
+<div class="container">
+    <h1>LSTM Stock Predictions</h1>
+    <form id="predictionForm">
+        <label for="stockSymbols">Enter Stock Symbols (comma-separated):</label>
+        <input type="text" id="stockSymbols" name="stockSymbols" placeholder="e.g., AAPL, GOOG, TSLA">
+        <button type="submit">Predict</button>
+    </form>
+
+    <div id="predictionResults"></div>
+
+    <script src="/static/js/lstm/predict.js"></script>
+</div>
+</body>
+</html>

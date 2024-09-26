@@ -1,0 +1,27 @@
+hiddenSize: 20, epoch: 10, batch: 16, trainingRate: 0.01
+Training data size: 22337
+Validation data size: 2978
+Final test data size: 11914
+Final Test Accuracy: 0.16
+Final Test Loss: 0.84
+Overall Average Accuracy: 0.13
+Overall Average Loss: 0.88
+Confusion Matrix:
+TP: 0, FN: 584
+FP: 0, TN: 11330
+Precision positive class: 0.0000
+Recall positive class: 0.0000
+F1 Score positive class: 0.0000
+Precision negative class: 0.9510
+Recall negative class: 1.0000
+F1 Score negative class: 0.9749
+Epoch 0: Accuracy = 0.11, Loss = 0.89, Validation Accuracy = 0.11, Validation Loss = 0.89
+Epoch 1: Accuracy = 0.11, Loss = 0.89, Validation Accuracy = 0.11, Validation Loss = 0.89
+Epoch 2: Accuracy = 0.11, Loss = 0.89, Validation Accuracy = 0.11, Validation Loss = 0.89
+Epoch 3: Accuracy = 0.11, Loss = 0.89, Validation Accuracy = 0.11, Validation Loss = 0.89
+Epoch 4: Accuracy = 0.11, Loss = 0.89, Validation Accuracy = 0.11, Validation Loss = 0.89
+Epoch 5: Accuracy = 0.12, Loss = 0.88, Validation Accuracy = 0.14, Validation Loss = 0.86
+Epoch 6: Accuracy = 0.14, Loss = 0.86, Validation Accuracy = 0.16, Validation Loss = 0.84
+Epoch 7: Accuracy = 0.14, Loss = 0.86, Validation Accuracy = 0.16, Validation Loss = 0.84
+Epoch 8: Accuracy = 0.14, Loss = 0.86, Validation Accuracy = 0.16, Validation Loss = 0.84
+Epoch 9: Accuracy = 0.14, Loss = 0.86, Validation Accuracy = 0.16, Validation Loss = 0.84

@@ -1,4 +1,6 @@
-package com.stockmanagment.porfoliomanagment.lstm.util;
+package com.stockmanagment.porfoliomanagment.service.nepse.lstm.util;
+
+import org.springframework.stereotype.Service;
 
 public class TechnicalIndicators {
 

@@ -1,4 +1,3 @@
-// src/main/java/com/stockmanagment/porfoliomanagment/service/nepse/PredictionsService.java
 package com.stockmanagment.porfoliomanagment.service.nepse;
 
 import com.stockmanagment.porfoliomanagment.model.nepse.Predictions;
@@ -30,4 +29,6 @@ public class PredictionsService {
     public void deletePredictions(int id) {
         predictionsRepository.deleteById(id);
     }
+
+
 }

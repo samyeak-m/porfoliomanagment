@@ -72,8 +72,6 @@ public class DailyDataController {
     }
 
 
-    // Get all symbols' data for the provided date (or today's date)
-    // Get all symbols' data for today's date
     @GetMapping("/today")
     public ResponseEntity<List<DailyData>> getTodaysData() {
         try {
@@ -91,25 +89,25 @@ public class DailyDataController {
     }
 
 
-    // Trigger data scraping manually
-    @PostMapping("/scrape")
-    public ResponseEntity<String> scrapeDailyData() {
-        try {
-            dailyDataService.scrapeAndStoreDailyData();
-            return ResponseEntity.ok("Data scraping and storage triggered successfully.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error during data scraping: " + e.getMessage());
-        }
-    }
+//    // Trigger data scraping manually
+//    @PostMapping("/scrape")
+//    public ResponseEntity<String> scrapeDailyData() {
+//        try {
+//            dailyDataService.scrapeAndStoreDailyData();
+//            return ResponseEntity.ok("Data scraping and storage triggered successfully.");
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error during data scraping: " + e.getMessage());
+//        }
+//    }
 
     // Store the last update of the day
-    @PostMapping("/store-last-update")
-    public ResponseEntity<String> storeLastUpdateOfTheDay() {
-        try {
-            dailyDataService.storeLastUpdateOfTheDay();
-            return ResponseEntity.ok("Last update of the day stored successfully.");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error storing last update: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/store-last-update")
+//    public ResponseEntity<String> storeLastUpdateOfTheDay() {
+//        try {
+//            dailyDataService.storeLastUpdateOfTheDay();
+//            return ResponseEntity.ok("Last update of the day stored successfully.");
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error storing last update: " + e.getMessage());
+//        }
+//    }
 }

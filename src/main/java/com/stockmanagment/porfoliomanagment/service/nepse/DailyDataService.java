@@ -53,9 +53,9 @@ public class DailyDataService {
 
     @PostConstruct
     public void onStartup() {
-        System.out.println("Server has started. Preparing to start scraping...");
+//        System.out.println("Server has started. Preparing to start scraping...");
         // Delayed scraping to allow server to fully start before data scraping begins.
-        startScrapingAfterDelay();
+//        startScrapingAfterDelay();
     }
 
     public void startScrapingAfterDelay() {

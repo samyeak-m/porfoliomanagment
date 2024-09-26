@@ -1,4 +1,5 @@
 package com.stockmanagment.porfoliomanagment.controller.home;
+import com.stockmanagment.porfoliomanagment.service.nepse.PredictionsService;
 
 import com.stockmanagment.porfoliomanagment.model.portfolio.UserDetail;
 import com.stockmanagment.porfoliomanagment.service.portfolio.UserDetailService;
@@ -6,9 +7,11 @@ import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
 import com.stockmanagment.porfoliomanagment.service.nepse.DailyDataService;
 import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.ui.Model;
 
@@ -16,10 +19,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
+import java.io.File;
 import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Controller
 public class HomeController {
@@ -30,19 +33,24 @@ public class HomeController {
     private final DailyDataService dailyDataService;
     private final CustomDailyDataRepository customDailyDataRepository;
     private final UserDetailService userDetailService;
+    private final PredictionsService predictionsService;
+
+    private final Map<String, Double> nextClosePriceCache = new HashMap<>();
+
 
     public HomeController(VarCalculationService varCalculationService, DailyDataService dailyDataService,
-                          CustomDailyDataRepository customDailyDataRepository, UserDetailService userDetailService) {
+                          CustomDailyDataRepository customDailyDataRepository, UserDetailService userDetailService, PredictionsService predictionsService) {
         this.varCalculationService = varCalculationService;
         this.dailyDataService = dailyDataService;
         this.customDailyDataRepository = customDailyDataRepository;
         this.userDetailService = userDetailService;
+        this.predictionsService = predictionsService;
     }
 
-    @GetMapping("/")
-    public String index() {
-        return "index"; // Home page
-    }
+//    @GetMapping("/")
+//    public String index() {
+//        return "index"; // Home page
+//    }
 
     @GetMapping("/login")
     public String loginPage() {
@@ -50,11 +58,11 @@ public class HomeController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestParam String email, @RequestParam String password, HttpSession session, Model model) {
+    public String login(@RequestParam String email, @RequestParam String password, Model model) {
         Optional<UserDetail> userDetail = userDetailService.login(email, password);
         if (userDetail.isPresent()) {
-            session.setAttribute("user", userDetail.get());
-            return "redirect:/index"; // Redirect to home page
+//            session.setAttribute("user", userDetail.get());
+            return "daily/dailydata";
         }
         model.addAttribute("error", "Invalid email or password");
         return "auth/login";
@@ -100,11 +108,19 @@ public class HomeController {
                 double var = varCalculationService.calculateVaR(stockSymbol, days, confidenceLevel);
                 double initialStockPrice = varCalculationService.getInitialStockPrice(stockSymbol);
 
+                // Get today's date
+                LocalDate today = LocalDate.now();
+                String cacheKey = stockSymbol + today;
+
+                // Check cache for today's next close price, otherwise generate and store it
+                double nextClosePrice = nextClosePriceCache.computeIfAbsent(cacheKey, key -> calculateNextClosePrice(initialStockPrice));
+
                 double varPercentage = (var / initialStockPrice) * 100;
 
                 model.addAttribute("var", String.format("%.2f", var));
                 model.addAttribute("confidenceLevel", String.format("%.2f", confidenceLevel * 100));
                 model.addAttribute("initialStockPrice", String.format("%.2f", initialStockPrice));
+                model.addAttribute("nextClosePrice", String.format("%.2f", nextClosePrice));
                 model.addAttribute("varPercentage", String.format("%.2f", varPercentage));
                 model.addAttribute("stockSymbol", stockSymbol);
             } catch (RuntimeException e) {
@@ -114,7 +130,7 @@ public class HomeController {
         return "var/calculate-var";
     }
 
-    @GetMapping("/daily")
+    @GetMapping("/")
     public String getDailyData(@RequestParam(required = false) String symbol,
                                @RequestParam(required = false) String startDate,
                                @RequestParam(required = false) String endDate,
@@ -158,4 +174,47 @@ public class HomeController {
         }
         return "daily/dailydata";
     }
+
+    // Route for multiple stock VaR calculation (investment route)
+    @GetMapping("/investment")
+    public String investmentPage(Model model) {
+        // Optionally, load default data or setup necessary attributes for the investment page
+        return "daily/investment";
+    }
+
+    @PostMapping("/investment/calculate")
+    public ResponseEntity<Map<String, Object>> calculateMultipleVaR(
+            @RequestBody Map<String, Double> frontendInvestmentData,
+            @RequestParam int daysOfInvestment) {
+
+        Map<String, Object> response = new HashMap<>();
+        try {
+            // Business logic to calculate VaR based on investment amount and days
+            Map<String, Object> result = varCalculationService.calculateMultipleVaRForAllStocks(frontendInvestmentData, daysOfInvestment);
+
+            // Return the result as JSON
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    private double calculateNextClosePrice(double initialStockPrice) {
+        double percentageChange;
+
+        if (initialStockPrice < 200) {
+            percentageChange = (Math.random() * 8) - 4;
+        } else if (initialStockPrice < 800) {
+            percentageChange = (Math.random() * 12) - 6;
+        } else if (initialStockPrice < 1500) {
+            percentageChange = (Math.random() * 14) - 7;
+        } else {
+            percentageChange = (Math.random() * 18) - 9;
+        }
+
+        double nextClosePrice = initialStockPrice + (initialStockPrice * percentageChange / 100);
+        return nextClosePrice;
+    }
+
 }

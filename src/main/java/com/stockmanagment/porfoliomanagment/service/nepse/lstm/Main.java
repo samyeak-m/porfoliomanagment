@@ -1,11 +1,12 @@
-package com.stockmanagment.porfoliomanagment.lstm;
+package com.stockmanagment.porfoliomanagment.service.nepse.lstm;
 
-import com.stockmanagment.porfoliomanagment.lstm.database.DatabaseHelper;
-import com.stockmanagment.porfoliomanagment.lstm.lstm.LSTMNetwork;
-import com.stockmanagment.porfoliomanagment.lstm.lstm.LSTMTrainer;
-import com.stockmanagment.porfoliomanagment.lstm.util.CustomChartUtils;
-import com.stockmanagment.porfoliomanagment.lstm.util.DataPreprocessor;
-import com.stockmanagment.porfoliomanagment.lstm.util.TechnicalIndicators;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMNetwork;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMTrainer;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.CustomChartUtils;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.DataPreprocessor;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.TechnicalIndicators;
+import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -19,7 +20,7 @@ import java.util.Scanner;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+@Service
 public class Main {
     static String version = "v1";
 
@@ -29,12 +30,12 @@ public class Main {
     private static final String BLUE = "\u001B[34m";
     private static final String YELLOW = "\u001B[33m";
 
-    static int hiddenSize = 50;
-    static int denseSize = 5;
+    static int hiddenSize = 20;
+    static int denseSize = 3;
     static int inputSize = 8;
     static int outputSize = 1;
-    static int epoch = 1000;
-    static int batch = 64;
+    static int epoch = 10;
+    static int batch = 16;
     static double trainingRate = 0.1;
 
     static double threshold = 0.1;
@@ -106,15 +107,21 @@ public class Main {
             LOGGER.log(Level.INFO, String.format(GREEN + "Final Test Loss: %.2f" + RESET, finalTestLoss));
 
             int[][] confusionMatrix = lstm.computeConfusionMatrix(finalTestData, finalTestData[finalTestData.length - 1][1], threshold);
-            double[] metrics = printConfusionMatrix(confusionMatrix);
+            double[][] metrics = printConfusionMatrix(confusionMatrix);
 
             double averageAccuracy = averages[0];
             double averageLoss = averages[1];
-            double precision = metrics[0];
-            double recall = metrics[1];
-            double f1Score = metrics[2];
+            // Metrics for Positive class
+            double precisionPositive = metrics[0][0];
+            double recallPositive = metrics[0][1];
+            double f1ScorePositive = metrics[0][2];
 
-            logFile(testAccuracy, finalTestLoss, averageAccuracy, averageLoss, confusionMatrix, precision, recall, f1Score, trainData, validationData, finalTestData);
+            // Metrics for Negative class
+            double precisionNegative = metrics[1][0];
+            double recallNegative = metrics[1][1];
+            double f1ScoreNegative = metrics[1][2];
+
+            logFile(testAccuracy, finalTestLoss, averageAccuracy, averageLoss, confusionMatrix, precisionNegative, recallNegative,f1ScoreNegative,precisionPositive, recallPositive, f1ScorePositive, trainData, validationData, finalTestData);
 
             lstm.saveModel(MODEL_FILE_PATH);
 
@@ -151,27 +158,41 @@ public class Main {
         System.out.println(GREEN + "Program execution finished." + RESET);
     }
 
-    private static double[] printConfusionMatrix(int[][] matrix) {
+    private static double[][] printConfusionMatrix(int[][] matrix) {
 
         int tp = matrix[0][0];
         int fn = matrix[1][0];
         int fp = matrix[0][1];
         int tn = matrix[1][1];
+//l
+        double precisionPositive = (tp + fp) > 0 ? (double) tp / (tp + fp) : 0;
+        double recallPositive = (tp + fn) > 0 ? (double) tp / (tp + fn) : 0;
+        double f1ScorePositive = (precisionPositive + recallPositive) > 0 ? 2 * (precisionPositive * recallPositive) / (precisionPositive + recallPositive) : 0;
 
-        double precision = (tp + fp) > 0 ? (double) tp / (tp + fp) : 0;
-        double recall = (tp + fn) > 0 ? (double) tp / (tp + fn) : 0;
-        double f1Score = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+        double precisionNegative = (tn + fn) > 0 ? (double) tn / (tn + fn) : 0;
+        double recallNegative = (tn + fp) > 0 ? (double) tn / (tn + fp) : 0;
+        double f1ScoreNegative = (precisionNegative + recallNegative) > 0 ? 2 * (precisionNegative * recallNegative) / (precisionNegative + recallNegative) : 0;
 
         System.out.println("Confusion Matrix:");
         System.out.println("TP: " + tp + ", FN: " + fn);
         System.out.println("FP: " + fp + ", TN: " + tn);
-        System.out.println("Precision: " + String.format("%.4f", precision));
-        System.out.println("Recall: " + String.format("%.4f", recall));
-        System.out.println("F1 Score: " + String.format("%.4f", f1Score));
 
-        return new double[]{precision, recall, f1Score};
+        System.out.println("Positive Class:");
+        System.out.println("Precision: " + String.format("%.4f", precisionPositive));
+        System.out.println("Recall: " + String.format("%.4f", recallPositive));
+        System.out.println("F1 Score: " + String.format("%.4f", f1ScorePositive));
 
+        System.out.println("Negative Class:");
+        System.out.println("Precision: " + String.format("%.4f", precisionNegative));
+        System.out.println("Recall: " + String.format("%.4f", recallNegative));
+        System.out.println("F1 Score: " + String.format("%.4f", f1ScoreNegative));
+
+        return new double[][]{
+                {precisionPositive, recallPositive, f1ScorePositive},
+                {precisionNegative, recallNegative, f1ScoreNegative}
+        };
     }
+
 
     private static double[] trainModel(LSTMNetwork lstm, double[][] trainData, double[][] validationData, int epochs, double learningRate,double[] min, double[] max) {
         LSTMTrainer trainer = new LSTMTrainer(lstm, learningRate);
@@ -342,7 +363,7 @@ public class Main {
     }
 
     public static void logFile(double finalTestAccuracy, double finalTestLoss, double averageAccuracy, double averageLoss, int[][] confusionMatrix,
-                               double precision, double recall, double f1Score, double[][] trainData, double[][] validationData, double[][] finalTestData) {
+                               double precisionNegative, double recallNegative, double f1ScoreNegative,double precisionPositive, double recallPositive, double f1ScorePositive, double[][] trainData, double[][] validationData, double[][] finalTestData) {
         String logFileName = BASE_DIR + File.separator + "confusion.txt";
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFileName))) {
@@ -365,9 +386,12 @@ public class Main {
             writer.write("Confusion Matrix:\n");
             writer.write("TP: " + tp + ", FN: " + fn + "\n");
             writer.write("FP: " + fp + ", TN: " + tn + "\n");
-            writer.write("Precision: " + String.format("%.4f", precision) + "\n");
-            writer.write("Recall: " + String.format("%.4f", recall) + "\n");
-            writer.write("F1 Score: " + String.format("%.4f", f1Score) + "\n");
+            writer.write("Precision positive class: " + String.format("%.4f", precisionPositive) + "\n");
+            writer.write("Recall positive class: " + String.format("%.4f", recallPositive) + "\n");
+            writer.write("F1 Score positive class: " + String.format("%.4f", f1ScorePositive) + "\n");
+            writer.write("Precision negative class: " + String.format("%.4f", precisionNegative) + "\n");
+            writer.write("Recall negative class: " + String.format("%.4f", recallNegative) + "\n");
+            writer.write("F1 Score negative class: " + String.format("%.4f", f1ScoreNegative) + "\n");
 
             for (int i = 0; i < epochList.size(); i++) {
                 writer.write(String.format("Epoch %d: Accuracy = %.2f, Loss = %.2f, Validation Accuracy = %.2f, Validation Loss = %.2f\n",

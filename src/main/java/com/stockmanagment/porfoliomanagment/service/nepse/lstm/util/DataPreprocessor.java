@@ -1,10 +1,11 @@
-package com.stockmanagment.porfoliomanagment.lstm.util;
+package com.stockmanagment.porfoliomanagment.service.nepse.lstm.util;
+
+import org.springframework.stereotype.Service;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
-
 public class DataPreprocessor {
 
     private static final String NORMALIZATION_FILE_PATH = "normal.txt";

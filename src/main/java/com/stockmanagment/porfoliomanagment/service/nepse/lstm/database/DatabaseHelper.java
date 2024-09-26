@@ -1,6 +1,7 @@
-package com.stockmanagment.porfoliomanagment.lstm.database;
+package com.stockmanagment.porfoliomanagment.service.nepse.lstm.database;
 
-import com.stockmanagment.porfoliomanagment.lstm.util.PropertyLoader;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.PropertyLoader;
+import org.springframework.stereotype.Service;
 
 import java.sql.Date;
 import java.sql.*;
@@ -9,6 +10,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+@Service
 public class DatabaseHelper {
     private static final Logger LOGGER = Logger.getLogger(DatabaseHelper.class.getName());
     private final String url;
@@ -18,9 +20,9 @@ public class DatabaseHelper {
 
     public DatabaseHelper() {
         Properties properties = PropertyLoader.loadProperties("application.properties");
-        this.url = properties.getProperty("db.url");
-        this.username = properties.getProperty("db.username");
-        this.password = properties.getProperty("db.password");
+        this.url = properties.getProperty("spring.datasource.nepse.jdbc-url");
+        this.username = properties.getProperty("spring.datasource.nepse.username");
+        this.password = properties.getProperty("spring.datasource.nepse.password");
         this.tableNameMap = new HashMap<>();
         try {
             generateTableNameMap();

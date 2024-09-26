@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.lstm.lstm;
+package com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm;
 
 import java.io.*;
 import java.util.Arrays;

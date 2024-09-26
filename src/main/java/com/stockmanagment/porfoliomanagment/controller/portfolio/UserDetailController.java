@@ -41,10 +41,10 @@ public class UserDetailController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestParam String email, @RequestParam String password, HttpSession session) {
+    public ResponseEntity<String> login(@RequestParam String email, @RequestParam String password) {
         Optional<UserDetail> userDetail = userDetailService.login(email, password);
         if (userDetail.isPresent()) {
-            session.setAttribute("user", userDetail.get());
+//            session.setAttribute("user", userDetail.get());
             return ResponseEntity.ok("Login successful");
         }
         return ResponseEntity.status(401).body("Invalid email or password");

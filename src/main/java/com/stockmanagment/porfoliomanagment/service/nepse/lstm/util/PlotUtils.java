@@ -1,4 +1,4 @@
-package com.stockmanagment.porfoliomanagment.lstm.util;
+package com.stockmanagment.porfoliomanagment.service.nepse.lstm.util;
 
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;
@@ -6,11 +6,11 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-
 public class PlotUtils {
 
     public static void savePredictionPlot(String stockSymbol, List<double[]> stockData, List<Double> predictions) {
