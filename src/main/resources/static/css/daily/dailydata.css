@@ -1,5 +1,7 @@
 main {
-    padding: 2rem;
+    padding: 0;
+    margin: 0;
+    padding-top:80px;
 }
 
 form {
@@ -28,7 +30,6 @@ input[type="date"] {
     border-radius: 4px;
 }
 
-/* Focus effect for text and date inputs */
 input[type="text"]:focus,
 input[type="date"]:focus,
 input[type="text"]:hover,
@@ -36,8 +37,6 @@ input[type="date"]:hover {
     border: 2px solid #0035a6;
     outline: none;
 }
-
-
 
 button {
     background-color: #007bff;
@@ -53,22 +52,26 @@ button:hover {
 }
 
 #stock-data {
+    display: flex;
+    flex-flow: row nowrap;
     margin-top: 2rem;
+    justify-content: center;
+    align-items: center;
 }
 
 #stock-data table {
-    width: 100%;
+    width: 90dvw;
     border-collapse: collapse;
 }
 
 #stock-data th,
 #stock-data td {
-    padding: 0.75rem;
+    padding: 0.5rem;
     border: 1px solid #ddd;
     text-align: left;
 }
 
 #stock-data th {
-    width: 100px;
+    width: 75px;
     background-color: #f4f4f4;
 }

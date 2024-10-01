@@ -36,6 +36,8 @@ public class HomeController {
     private final PredictionsService predictionsService;
 
     private final Map<String, Double> nextClosePriceCache = new HashMap<>();
+    private Map<String, Double> previousPredictions = new HashMap<>();
+
 
 
     public HomeController(VarCalculationService varCalculationService, DailyDataService dailyDataService,
@@ -46,11 +48,6 @@ public class HomeController {
         this.userDetailService = userDetailService;
         this.predictionsService = predictionsService;
     }
-
-//    @GetMapping("/")
-//    public String index() {
-//        return "index"; // Home page
-//    }
 
     @GetMapping("/login")
     public String loginPage() {
@@ -70,18 +67,18 @@ public class HomeController {
 
     @GetMapping("/signup")
     public String signupPage() {
-        return "auth/signup"; // Return the signup page view
+        return "auth/signup";
     }
 
     @PostMapping("/signup")
     public String signup(@RequestParam String email,
                          @RequestParam String password,
-                         @RequestParam String phone, // Add phone parameter
+                         @RequestParam String phone,
                          Model model) {
         UserDetail newUser = new UserDetail();
         newUser.setEmail(email);
-        newUser.setPassword(password); // Consider hashing the password
-        newUser.setPhone(phone); // Set the phone number
+        newUser.setPassword(password);
+        newUser.setPhone(phone);
 
         userDetailService.saveUserDetail(newUser);
 
@@ -94,7 +91,7 @@ public class HomeController {
     @GetMapping("/logout")
     public String logout(HttpSession session) {
         session.invalidate();
-        return "redirect:/auth/login"; // Redirect to login page
+        return "redirect:/auth/login";
     }
 
     @GetMapping("/var")
@@ -108,12 +105,10 @@ public class HomeController {
                 double var = varCalculationService.calculateVaR(stockSymbol, days, confidenceLevel);
                 double initialStockPrice = varCalculationService.getInitialStockPrice(stockSymbol);
 
-                // Get today's date
                 LocalDate today = LocalDate.now();
                 String cacheKey = stockSymbol + today;
 
-                // Check cache for today's next close price, otherwise generate and store it
-                double nextClosePrice = nextClosePriceCache.computeIfAbsent(cacheKey, key -> calculateNextClosePrice(initialStockPrice));
+                double nextClosePrice = nextClosePriceCache.computeIfAbsent(cacheKey, key -> calculateNextClosePrice(stockSymbol, initialStockPrice));
 
                 double varPercentage = (var / initialStockPrice) * 100;
 
@@ -189,10 +184,8 @@ public class HomeController {
 
         Map<String, Object> response = new HashMap<>();
         try {
-            // Business logic to calculate VaR based on investment amount and days
             Map<String, Object> result = varCalculationService.calculateMultipleVaRForAllStocks(frontendInvestmentData, daysOfInvestment);
 
-            // Return the result as JSON
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             response.put("error", e.getMessage());
@@ -200,7 +193,28 @@ public class HomeController {
         }
     }
 
-    private double calculateNextClosePrice(double initialStockPrice) {
+    private boolean isPriceStable(String stockSymbol, double initialStockPrice) {
+        List<Double> priceHistory = dailyDataService.getStockPriceHistory(stockSymbol, 2);
+        if (priceHistory == null || priceHistory.size() < 2) {
+            return false;
+        }
+        for (double price : priceHistory) {
+            if (price != initialStockPrice) {
+                return false;
+            }
+        }
+        return true;
+    }
+    private double calculateNextClosePrice(String stockSymbol, double initialStockPrice) {
+        LocalDate today = LocalDate.now();
+
+        if (isPriceStable(stockSymbol, initialStockPrice)) {
+            if (previousPredictions.containsKey(stockSymbol)) {
+                logger.info("Price stable for {}. Returning previous prediction.", stockSymbol);
+                return previousPredictions.get(stockSymbol);
+            }
+        }
+
         double percentageChange;
 
         if (initialStockPrice < 200) {
@@ -214,7 +228,8 @@ public class HomeController {
         }
 
         double nextClosePrice = initialStockPrice + (initialStockPrice * percentageChange / 100);
+        previousPredictions.put(stockSymbol, nextClosePrice);
+
         return nextClosePrice;
     }
-
 }

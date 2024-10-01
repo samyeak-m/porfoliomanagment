@@ -229,5 +229,10 @@ public class DailyDataService {
         return getDailyDataBySymbolAndDateRange(symbol, startDate, endDate);
     }
 
+    public List<Double> getStockPriceHistory(String stockSymbol, int days) {
+        return dailyDataRepository.findPricesForLastNDays(stockSymbol, days);
+    }
+
+
 }
 
