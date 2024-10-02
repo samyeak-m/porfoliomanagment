@@ -27,7 +27,7 @@
         <p><strong>Stock Name:</strong> <span th:text="${stockSymbol}"></span></p> <!-- Stock Name -->
         <p><strong>Initial Stock Price: Rs.</strong> <span th:text="${initialStockPrice}"></span></p>
         <p><strong>Confidence Level:</strong> <span th:text="${confidenceLevel}"></span>%</p>
-        <p><strong>Value at Risk (VaR):</strong> <span th:text="${var}"></span> (<span th:text="${varPercentage}"></span>% of initial investment)</p>
+        <p><strong>Value at Risk (Monte Carlo):</strong> <span th:text="${var}"></span> (<span th:text="${varPercentage}"></span>% of initial investment)</p>
         <p>
             <strong>Next Close Price (Lstm):</strong>
             <span th:text="${nextClosePrice}"
