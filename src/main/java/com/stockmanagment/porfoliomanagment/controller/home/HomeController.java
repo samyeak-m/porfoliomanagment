@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
-import java.io.File;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.*;
@@ -99,16 +98,17 @@ public class HomeController {
                                @RequestParam(required = false, defaultValue = "25") int days,
                                Model model) {
         if (stockSymbol != null && !stockSymbol.isEmpty()) {
+            String normalizedStockSymbol = stockSymbol.toLowerCase();
             try {
-                double confidenceLevel = varCalculationService.calculateDynamicConfidenceLevel(stockSymbol);
-                varCalculationService.calculateAndStoreVaR(stockSymbol, days, confidenceLevel, false);
-                double var = varCalculationService.calculateVaR(stockSymbol, days, confidenceLevel);
-                double initialStockPrice = varCalculationService.getInitialStockPrice(stockSymbol);
+                double confidenceLevel = varCalculationService.calculateDynamicConfidenceLevel(normalizedStockSymbol);
+                varCalculationService.calculateAndStoreVaR(normalizedStockSymbol, days, confidenceLevel, false);
+                double var = varCalculationService.calculateVaR(normalizedStockSymbol, days, confidenceLevel);
+                double initialStockPrice = varCalculationService.getInitialStockPrice(normalizedStockSymbol);
 
                 LocalDate today = LocalDate.now();
-                String cacheKey = stockSymbol + today;
+                String cacheKey = normalizedStockSymbol + today;
 
-                double nextClosePrice = nextClosePriceCache.computeIfAbsent(cacheKey, key -> calculateNextClosePrice(stockSymbol, initialStockPrice));
+                double nextClosePrice = nextClosePriceCache.computeIfAbsent(cacheKey, key -> calculateNextClosePrice(normalizedStockSymbol, initialStockPrice));
 
                 double varPercentage = (var / initialStockPrice) * 100;
 
@@ -117,13 +117,14 @@ public class HomeController {
                 model.addAttribute("initialStockPrice", String.format("%.2f", initialStockPrice));
                 model.addAttribute("nextClosePrice", String.format("%.2f", nextClosePrice));
                 model.addAttribute("varPercentage", String.format("%.2f", varPercentage));
-                model.addAttribute("stockSymbol", stockSymbol);
+                model.addAttribute("stockSymbol", normalizedStockSymbol); // Use the normalized stock symbol
             } catch (RuntimeException e) {
                 model.addAttribute("error", e.getMessage());
             }
         }
         return "var/calculate-var";
     }
+
 
     @GetMapping("/")
     public String getDailyData(@RequestParam(required = false) String symbol,

@@ -96,7 +96,7 @@ public class VarCalculationService {
 
     public List<Double> getClosePrices(String stockSymbol) {
         String tableName = "daily_data_" + stockSymbol.toLowerCase();
-        String query = "SELECT close FROM " + tableName + " ORDER BY date ASC";
+        String query = "SELECT close FROM " + tableName + " ORDER BY date DESC";
         return (List<Double>) entityManager.createNativeQuery(query)
                 .getResultList()
                 .stream()
@@ -205,7 +205,6 @@ public class VarCalculationService {
             if (stockPriceOpt.isPresent()) {
                 double stockPrice = stockPriceOpt.get();
 
-                // This is where the filtering logic is applied
                 if (investmentAmount / stockPrice <= stockPrice * 30) {
                     filteredStockInvestmentMap.put(stockSymbol, investmentAmount);
                 }
@@ -221,7 +220,7 @@ public class VarCalculationService {
         if (closePrices.isEmpty()) {
             throw new RuntimeException("No closing prices available for the given stock symbol: " + stockSymbol);
         }
-        return closePrices.get(0); // Assuming the first price is the initial stock price
+        return closePrices.get(0);
     }
 
     public Map<String, Object> calculateMultipleVaRForAllStocks(Map<String, Double> stockAndDaysMap, double confidenceLevel) {
