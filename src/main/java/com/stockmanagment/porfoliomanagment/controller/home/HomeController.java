@@ -233,4 +233,9 @@ public class HomeController {
 
         return nextClosePrice;
     }
+
+    @GetMapping("/lstm/predict")
+    public String showPredictPage() {
+        return "lstm/lstmpredict";
+    }
 }

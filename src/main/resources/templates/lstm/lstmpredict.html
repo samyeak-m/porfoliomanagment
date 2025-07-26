@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Prediction</title>
+    <link rel="stylesheet" href="/css/lstm/predict.css">
+</head>
+<body>
+<div th:insert="~{layout/header :: header}"></div>
+<div class="container">
+    <h1>Stock Price Prediction</h1>
+    <form id="predict-form">
+        <label for="stockSymbol">Stock Symbol:</label>
+        <input type="text" id="stockSymbol" name="stockSymbol" required placeholder="e.g., NABIL">
+        <button type="submit">Predict</button>
+    </form>
+    <div id="predictionResults"></div>
+</div>
+<script src="/js/lstm/lstmpredict.js"></script>
+</body>
+</html>
