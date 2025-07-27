@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LSTM Training Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #metrics { white-space: pre; background: #f5f5f5; padding: 1em; border-radius: 5px; }
+        .chart-container { width: 600px; margin: 20px auto; }
+    </style>
+</head>
+<body>
+    <h1>LSTM Training Dashboard</h1>
+    <button id="trainBtn">Start Training</button>
+    <div id="status"></div>
+    <h2>Training Metrics</h2>
+    <div id="metrics"></div>
+    <div class="chart-container">
+        <canvas id="accuracyChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="lossChart"></canvas>
+    </div>
+    <script>
+        const trainBtn = document.getElementById('trainBtn');
+        const statusDiv = document.getElementById('status');
+        const metricsDiv = document.getElementById('metrics');
+        let trainingInProgress = false;
+        let metricsInterval = null;
+
+        trainBtn.onclick = async () => {
+            statusDiv.textContent = "Training started...";
+            trainingInProgress = true;
+            await fetch('/api/lstm/train', { method: 'POST' });
+            statusDiv.textContent = "Training in progress...";
+            if (metricsInterval) clearInterval(metricsInterval);
+            metricsInterval = setInterval(fetchMetrics, 3000);
+        };
+
+        async function fetchMetrics() {
+            const res = await fetch('/api/lstm/metrics');
+            const text = await res.text();
+            metricsDiv.textContent = text;
+            updateCharts(text);
+
+            if (text.includes('Training Completed') || text.match(/Final F1 Score/i)) {
+                statusDiv.textContent = "Training completed!";
+                trainingInProgress = false;
+                if (metricsInterval) clearInterval(metricsInterval);
+            }
+        }
+
+        function updateCharts(metricsText) {
+            // Simple parsing for accuracy/loss per epoch
+            const accData = [];
+            const lossData = [];
+            const valAccData = [];
+            const valLossData = [];
+            const epochs = [];
+            const lines = metricsText.split('\n');
+            lines.forEach(line => {
+                const match = line.match(/Epoch (\d+): Accuracy = ([\d.]+), Loss = ([\d.]+), Validation Accuracy = ([\d.]+), Validation Loss = ([\d.]+)/);
+                if (match) {
+                    epochs.push(Number(match[1]));
+                    accData.push(Number(match[2]));
+                    lossData.push(Number(match[3]));
+                    valAccData.push(Number(match[4]));
+                    valLossData.push(Number(match[5]));
+                }
+            });
+            drawChart('accuracyChart', 'Accuracy', epochs, accData, valAccData);
+            drawChart('lossChart', 'Loss', epochs, lossData, valLossData);
+        }
+
+        function drawChart(canvasId, label, epochs, trainData, valData) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (window[canvasId]) window[canvasId].destroy();
+            window[canvasId] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: epochs,
+                    datasets: [
+                        { label: 'Train ' + label, data: trainData, borderColor: 'green', fill: false },
+                        { label: 'Validation ' + label, data: valData, borderColor: 'red', fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: { x: { title: { display: true, text: 'Epoch' } } }
+                }
+            });
+        }
+        fetchMetrics();
+    </script>
+</body>
+</html>

@@ -1,27 +1,30 @@
 package com.stockmanagment.porfoliomanagment.controller.home;
-import com.stockmanagment.porfoliomanagment.service.nepse.PredictionsService;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-import com.stockmanagment.porfoliomanagment.model.portfolio.UserDetail;
-import com.stockmanagment.porfoliomanagment.service.portfolio.UserDetailService;
-import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
-import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
-import com.stockmanagment.porfoliomanagment.service.nepse.DailyDataService;
-import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
+import javax.servlet.http.HttpSession;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.ui.Model;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.servlet.http.HttpSession;
-import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.util.*;
+import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
+import com.stockmanagment.porfoliomanagment.model.portfolio.UserDetail;
+import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
+import com.stockmanagment.porfoliomanagment.service.nepse.DailyDataService;
+import com.stockmanagment.porfoliomanagment.service.nepse.PredictionsService;
+import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
+import com.stockmanagment.porfoliomanagment.service.portfolio.UserDetailService;
 
 @Controller
 public class HomeController {
@@ -237,5 +240,9 @@ public class HomeController {
     @GetMapping("/lstm/predict")
     public String showPredictPage() {
         return "lstm/lstmpredict";
+    }
+    @GetMapping("/lstm/train")
+    public String showTrainPage() {
+        return "lstm/lstmtrain";
     }
 }

@@ -1,23 +1,26 @@
 package com.stockmanagment.porfoliomanagment.service;
 
-import com.stockmanagment.porfoliomanagment.dto.PredictionRequestDTO;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMNetwork;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMTrainer;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.CustomChartUtils;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.DataPreprocessor;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.TechnicalIndicators;
-import org.springframework.stereotype.Service;
-
-import java.io.File;
-import java.io.IOException;
-import java.sql.SQLException;
-import java.util.*;
 
 @Service
 public class LstmService {
 
-    private static final String VERSION = "v1";
+    private static final String VERSION = "v2";
     private static final int HIDDEN_SIZE = 20;
     private static final int DENSE_SIZE = 3;
     private static final int INPUT_SIZE = 8;
@@ -25,7 +28,7 @@ public class LstmService {
     private static final int EPOCH = 10;
     private static final int BATCH = 16;
     private static final double TRAINING_RATE = 0.1;
-    private static final String BASE_DIR = "output_" + VERSION + "_e" + EPOCH + "_b" + BATCH + "_h" + HIDDEN_SIZE;
+    private static final String BASE_DIR = "src/main/resources/static/model/output_" + VERSION + "_e" + EPOCH + "_b" + BATCH + "_h" + HIDDEN_SIZE;
     private static final String MODEL_FILE_PATH = BASE_DIR + File.separator + "lstm_model" + VERSION + "_" + EPOCH + ".ser";
 
     private double[] min;
@@ -55,6 +58,49 @@ public class LstmService {
             LSTMNetwork lstm = new LSTMNetwork(INPUT_SIZE, HIDDEN_SIZE, OUTPUT_SIZE, DENSE_SIZE, min, max);
             LSTMTrainer trainer = new LSTMTrainer(lstm, TRAINING_RATE);
             trainer.train(trainData, EPOCH, BATCH);
+
+            // Evaluate the model on test data and assign metrics
+            double testAccuracy = testModel(lstm, testData);
+            double testLoss = calculateLoss(lstm, testData);
+            int[][] confusionMatrix = lstm.computeConfusionMatrix(testData, testData[testData.length - 1][1], 0.1);
+            double f1Score = computeF1Score(confusionMatrix);
+
+            // 2. Save metrics to confusion.txt
+            File metricsFile = new File(BASE_DIR + File.separator + "confusion.txt");
+            try (PrintWriter writer = new PrintWriter(metricsFile)) {
+                writer.println("Test Accuracy: " + testAccuracy);
+                writer.println("Test Loss: " + testLoss);
+                writer.println("F1 Score: " + f1Score);
+                writer.println("Confusion Matrix:");
+                // Write confusion matrix rows
+                for (int[] row : confusionMatrix) {
+                    writer.println(Arrays.toString(row));
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            List<Integer> epochs = new ArrayList<>();
+            List<Double> accuracyList = new ArrayList<>();
+            List<Double> lossList = new ArrayList<>(); 
+            List<Double> valAccuracyList = new ArrayList<>();
+            List<Double> valLossList = new ArrayList<>();
+
+            String chartDir = BASE_DIR + File.separator + "charts";
+            new File(chartDir).mkdirs();
+
+            CustomChartUtils.saveAccuracyChart(
+                "Model Accuracy", epochs, accuracyList, valAccuracyList,
+                chartDir + File.separator + "model_accuracy.png", "Epochs", "Accuracy", 1);
+
+            CustomChartUtils.saveLossChart(
+                "Model Loss", epochs, lossList, valLossList,
+                chartDir + File.separator + "model_loss.png", "Epochs", "Loss", 1);
+
+            File modelDir = new File(BASE_DIR);
+            if (!modelDir.exists()) {
+                modelDir.mkdirs();
+            }
 
             lstm.saveModel(MODEL_FILE_PATH);
         } catch (Exception e) {
@@ -133,5 +179,60 @@ public class LstmService {
         testData = DataPreprocessor.normalize(testData, min, max);
 
         return new double[][][]{trainData, testData};
+    }
+
+    private double testModel(LSTMNetwork lstm, double[][] testData) {
+        double totalAccuracy = 0;
+        for (int i = 0; i < testData.length - 1; i++) {
+            double[] input = Arrays.copyOf(testData[i], testData[i].length - 1);
+            double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
+            if (output == null) continue;
+            double prediction = output[0];
+            double actual = testData[i + 1][1];
+            double currentClosePrice = testData[i][1];
+            double lastClosePrice = testData[i][1];
+            prediction = applyPredictionConstraints(prediction, lastClosePrice);
+            double accuracy = calculatePredictionAccuracy(prediction, actual, currentClosePrice);
+            totalAccuracy += accuracy;
+        }
+        return totalAccuracy / (testData.length - 1);
+    }
+
+    private double calculateLoss(LSTMNetwork lstm, double[][] data) {
+        double totalLoss = 0;
+        double maxChange = 0.08;
+        for (int i = 0; i < data.length - 1; i++) {
+            double[] input = Arrays.copyOf(data[i], data[i].length - 1);
+            double lastClosePrice = data[i][1];
+            double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
+            double prediction = output[0];
+            double minPrice = lastClosePrice * (1 - maxChange);
+            double maxPrice = lastClosePrice * (1 + maxChange);
+            if (prediction < minPrice) prediction = minPrice;
+            else if (prediction > maxPrice) prediction = maxPrice;
+            double actual = data[i + 1][1];
+            double diff = Math.abs(prediction - actual);
+            double tolerance = maxChange * actual;
+            double loss = (diff > tolerance) ? 1.0 : diff / tolerance;
+            totalLoss += loss;
+        }
+        return totalLoss / (data.length - 1);
+    }
+
+    private double calculatePredictionAccuracy(double prediction, double actual, double currentClosePrice) {
+        double maxChange = 0.08 * currentClosePrice;
+        double diff = Math.abs(prediction - actual);
+        if (diff > maxChange) return 0;
+        return 1 - (diff / maxChange);
+    }
+
+    private double computeF1Score(int[][] confusionMatrix) {
+        int tp = confusionMatrix[0][0];
+        int fn = confusionMatrix[1][0];
+        int fp = confusionMatrix[0][1];
+        int tn = confusionMatrix[1][1];
+        double precision = (tp + fp) > 0 ? (double) tp / (tp + fp) : 0;
+        double recall = (tp + fn) > 0 ? (double) tp / (tp + fn) : 0;
+        return (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
     }
 }
