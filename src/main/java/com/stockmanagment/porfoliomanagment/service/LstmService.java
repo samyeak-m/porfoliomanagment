@@ -37,6 +37,9 @@ public class LstmService {
     
     private double[] min;
     private double[] max;
+    
+    // ADD: Class-level LSTM network field
+    private LSTMNetwork lstm;
 
     // Lists to track training progress
     private final List<Integer> epochList = new ArrayList<>();
@@ -56,7 +59,7 @@ public class LstmService {
     }
     
     public void train() {
-        trainingStartTime = System.currentTimeMillis(); // Track start time
+        trainingStartTime = System.currentTimeMillis();
         
         try {
             isTraining = true;
@@ -71,7 +74,8 @@ public class LstmService {
             currentTrainingMessage = "Connecting to database...";
             currentProgress = 10.0;
             
-            LSTMNetwork lstm = LSTMNetwork.loadModel(config.getModelFilePath());
+            // FIXED: Use class field instead of local variable
+            lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             
             if (lstm == null) {
                 currentTrainingMessage = "Loading stock data from database...";
@@ -110,14 +114,14 @@ public class LstmService {
                 currentTrainingMessage = "Splitting data - Train: " + trainData.length + ", Test: " + testData.length;
                 currentProgress = 60.0;
                 
-                // **CRITICAL FIX: Actually create and train the model**
+                // FIXED: Create new LSTM network using class field
                 currentTrainingMessage = "Creating new LSTM network...";
                 lstm = new LSTMNetwork(config.getInputSize(), config.getHiddenSize(), 
                                      config.getOutputSize(), config.getDenseSize(), min, max);
                 
                 currentTrainingMessage = "Starting LSTM training with " + config.getEpochs() + " epochs...";
                 
-                // **CRITICAL FIX: Actually call trainModel**
+                // FIXED: Pass class field to trainModel
                 double[] averages = trainModel(lstm, trainData, testData, config.getEpochs(), config.getTrainingRate(), min, max);
                 
                 currentTrainingMessage = "Training completed. Saving model...";
@@ -688,12 +692,64 @@ public class LstmService {
             writer.write("\n");
 
             // Sample Technical Indicators Output
+            writer.write("=== TECHNICAL INDICATORS CALCULATION DETAILS ===\n");
+            writer.write("Calculation Method: Dynamic from actual training data\n");
+            writer.write("Data Source: First " + Math.min(5, trainData.length) + " rows of training dataset\n");
+            writer.write("EMA Period: 16, SMA Period: 20, RSI Period: 3\n");
+            writer.write("MACD Periods: 12,26,9 | BB Period: 20, StdDev: 2.0 | Stochastic Period: 14\n");
+            writer.write("\n");
+
             writer.write("=== SAMPLE TECHNICAL INDICATORS (First 5 Rows) ===\n");
-            writer.write("Row 0: EMA=207.00, SMA=207.00, RSI=50.00, ATR=8.00, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=211.14, BB_Lower=202.86, Stoch_K=0.00, Stoch_D=0.00\n");
-            writer.write("Row 1: EMA=203.00, SMA=203.00, RSI=50.00, ATR=8.00, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=202.98, BB_Lower=195.02, Stoch_K=0.00, Stoch_D=0.00\n");
-            writer.write("Row 2: EMA=200.67, SMA=200.67, RSI=50.00, ATR=6.33, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=199.92, BB_Lower=192.08, Stoch_K=0.00, Stoch_D=0.00\n");
-            writer.write("Row 3: EMA=201.00, SMA=201.00, RSI=35.29, ATR=6.25, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=206.04, BB_Lower=197.96, Stoch_K=31.58, Stoch_D=10.53\n");
-            writer.write("Row 4: EMA=200.40, SMA=200.40, RSI=26.09, ATR=5.80, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=201.96, BB_Lower=194.04, Stoch_K=10.53, Stoch_D=14.04\n");
+
+            if (trainData.length > 0) {
+                try {
+                    // Get sample of original stock data for indicator calculation
+                    int sampleRows = Math.min(5, trainData.length);
+                    
+                    // Create sample data array with proper structure
+                    double[][] sampleData = new double[sampleRows][6];
+                    for (int i = 0; i < sampleRows; i++) {
+                        sampleData[i][0] = trainData[i][0]; // table identifier
+                        sampleData[i][1] = denormalizeValue(trainData[i][1], min[1], max[1]); // close price
+                        sampleData[i][2] = denormalizeValue(trainData[i][2], min[2], max[2]); // high price
+                        sampleData[i][3] = denormalizeValue(trainData[i][3], min[3], max[3]); // low price
+                        sampleData[i][4] = denormalizeValue(trainData[i][4], min[4], max[4]); // open price
+                        sampleData[i][5] = denormalizeValue(trainData[i][5], min[5], max[5]); // date
+                    }
+                    
+                    // Calculate technical indicators
+                    double[][] indicators = TechnicalIndicators.calculate(sampleData, 16, 3);
+                    
+                    // Output calculated indicators
+                    for (int i = 0; i < sampleRows; i++) {
+                        writer.write(String.format(
+                            "Row %d: Close=%.2f, EMA=%.2f, SMA=%.2f, RSI=%.2f, ATR=%.2f, MACD=%.2f, Signal=%.2f, Histogram=%.2f, BB_Upper=%.2f, BB_Lower=%.2f, Stoch_K=%.2f, Stoch_D=%.2f%n",
+                            i,
+                            sampleData[i][1],         // Original close price
+                            indicators[i][0],         // EMA
+                            indicators[i][1],         // SMA  
+                            indicators[i][2],         // RSI
+                            indicators[i][3],         // ATR
+                            indicators[i][4],         // MACD
+                            indicators[i][5],         // Signal
+                            indicators[i][6],         // Histogram
+                            indicators[i][8],         // BB_Upper
+                            indicators[i][9],         // BB_Lower
+                            indicators[i][10],        // Stoch_K
+                            indicators[i][11]         // Stoch_D
+                        ));
+                    }
+                    
+                    writer.write("\nNote: Values calculated dynamically from actual training data\n");
+                    writer.write("Close prices denormalized from range [" + String.format("%.2f", min[1]) + ", " + String.format("%.2f", max[1]) + "]\n");
+                    
+                } catch (Exception e) {
+                    writer.write("Error calculating dynamic technical indicators: " + e.getMessage() + "\n");
+                    e.printStackTrace();
+                }
+            } else {
+                writer.write("No training data available for technical indicators calculation.\n");
+            }
             writer.write("\n");
 
             // Training Epoch Details
@@ -821,22 +877,67 @@ public class LstmService {
         }
     }
 
-    // Update your predict method to check for incremental learning
-    public PredictionResponseDTO predict(String stockSymbol) {
+    /**
+     * Denormalize a single value from [0,1] range back to original scale
+     */
+    private double denormalizeValue(double normalizedValue, double minValue, double maxValue) {
+        return normalizedValue * (maxValue - minValue) + minValue;
+    }
+
+    /**
+     * Get actual technical indicators from processed training data
+     */
+    private double[][] getActualTechnicalIndicators(double[][] normalizedTrainData, int sampleSize) {
         try {
-            // Check if incremental learning is needed before prediction
-            if (shouldPerformIncrementalLearning()) {
-                System.out.println("Performing incremental learning before prediction...");
-                incrementalLearning();
+            int samples = Math.min(sampleSize, normalizedTrainData.length);
+            double[][] denormalizedData = new double[samples][6];
+            
+            // Denormalize the data back to original scale
+            for (int i = 0; i < samples; i++) {
+                denormalizedData[i][0] = normalizedTrainData[i][0]; // table identifier (not normalized)
+                denormalizedData[i][1] = denormalizeValue(normalizedTrainData[i][1], min[1], max[1]); // close
+                denormalizedData[i][2] = denormalizeValue(normalizedTrainData[i][2], min[2], max[2]); // high
+                denormalizedData[i][3] = denormalizeValue(normalizedTrainData[i][3], min[3], max[3]); // low
+                denormalizedData[i][4] = denormalizeValue(normalizedTrainData[i][4], min[4], max[4]); // open
+                denormalizedData[i][5] = denormalizeValue(normalizedTrainData[i][5], min[5], max[5]); // date
             }
             
-            DatabaseHelper dbHelper = new DatabaseHelper();
-            LSTMNetwork lstm = LSTMNetwork.loadModel(config.getModelFilePath());
-            if (lstm == null) throw new RuntimeException("Model not trained yet.");
+            // Calculate fresh technical indicators
+            return TechnicalIndicators.calculate(denormalizedData, 16, 3);
+            
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Error calculating actual technical indicators", e);
+            return new double[0][0];
+        }
+    }
+
+    // Update your predict method to load the model
+    public PredictionResponseDTO predict(String stockSymbol) {
+        try {
+            // FIXED: Load the trained model
+            lstm = LSTMNetwork.loadModel(config.getModelFilePath());
+            if (lstm == null) {
+                throw new RuntimeException("No trained model found. Please train the model first.");
+            }
+            
+            // Get min/max from the loaded model
             min = lstm.getMin();
             max = lstm.getMax();
-
-            List<double[]> stockData = dbHelper.loadStockData(stockSymbol);
+            
+            if (min == null || max == null) {
+                throw new RuntimeException("Model normalization parameters not found. Please retrain the model.");
+            }
+            
+            // FIXED: Convert to lowercase for database operations
+            String normalizedStockSymbol = stockSymbol.toLowerCase();
+            
+            DatabaseHelper dbHelper = new DatabaseHelper();
+            List<double[]> stockData = dbHelper.loadStockData(normalizedStockSymbol);
+            
+            if (stockData.isEmpty()) {
+                throw new RuntimeException("No data found for stock symbol: " + stockSymbol);
+            }
+            
             double[][] stockDataArray = stockData.toArray(new double[0][]);
             double[][] technicalIndicators = TechnicalIndicators.calculate(stockDataArray, 16, 3);
             double[][] extendedData = DataPreprocessor.addFeatures(stockDataArray, technicalIndicators);
@@ -855,22 +956,27 @@ public class LstmService {
             
             double prediction = output[0];
             
-            // Use original price for constraints, not normalized
-            prediction = applyPredictionConstraints(prediction, originalLastClose);
+            // FIXED: Denormalize the prediction back to original scale
+            double denormalizedPrediction = prediction * (max[1] - min[1]) + min[1];
+            
+            // Use denormalized prediction for constraints
+            denormalizedPrediction = applyPredictionConstraints(denormalizedPrediction, originalLastClose);
 
-            // Don't denormalize - predictions are already in original scale
-            double pointChange = prediction - originalLastClose;
+            double pointChange = denormalizedPrediction - originalLastClose;
             double priceChange = (pointChange / originalLastClose) * 100;
 
             PredictionResponseDTO response = new PredictionResponseDTO();
-            response.setStockSymbol(stockSymbol);
-            response.setPrediction(prediction);
+            response.setStockSymbol(stockSymbol.toUpperCase()); // Display in uppercase
+            response.setPrediction(denormalizedPrediction);
             response.setLastClose(originalLastClose);
             response.setPointChange(pointChange);
             response.setPriceChange(priceChange);
+            response.setPredictionDate(LocalDate.now().toString());
 
             return response;
         } catch (Exception e) {
+            System.err.println("Prediction failed for " + stockSymbol + ": " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Prediction failed: " + e.getMessage(), e);
         }
     }

@@ -38,10 +38,13 @@ public class DatabaseHelper {
         this.username = properties.getProperty("spring.datasource.nepse.username");
         this.password = properties.getProperty("spring.datasource.nepse.password");
         this.tableNameMap = new HashMap<>();
+        
         try {
             generateTableNameMap();
+            LOGGER.log(Level.INFO, "DatabaseHelper initialized successfully with " + tableNameMap.size() + " table mappings");
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error generating table name map", e);
+            LOGGER.log(Level.SEVERE, "Error generating table name map during initialization", e);
+            // Don't throw exception here, let methods handle it gracefully
         }
     }
 
@@ -57,12 +60,23 @@ public class DatabaseHelper {
     }
 
     private void generateTableNameMap() throws SQLException {
+        this.tableNameMap = new HashMap<>();
         List<String> tableNames = getAllStockTableNames();
-        double step = 1.0 / (tableNames.size() - 1);
+        
+        if (tableNames.isEmpty()) {
+            LOGGER.log(Level.WARNING, "No stock tables found in database");
+            return;
+        }
+        
+        double step = tableNames.size() > 1 ? 1.0 / (tableNames.size() - 1) : 0.5;
 
         for (int i = 0; i < tableNames.size(); i++) {
-            tableNameMap.put(tableNames.get(i), i * step);
+            double normalizedValue = tableNames.size() == 1 ? 0.5 : i * step;
+            tableNameMap.put(tableNames.get(i), normalizedValue);
+            LOGGER.log(Level.INFO, "Mapped table '" + tableNames.get(i) + "' to normalized value: " + normalizedValue);
         }
+        
+        LOGGER.log(Level.INFO, "Generated tableNameMap with " + tableNames.size() + " entries");
     }
 
     public List<String> getAllStockTableNames() throws SQLException {
@@ -73,7 +87,8 @@ public class DatabaseHelper {
              PreparedStatement pstmt = conn.prepareStatement(query);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                String tableName = rs.getString(1).replace("daily_data_", "");
+                // FIXED: Store table names in lowercase
+                String tableName = rs.getString(1).replace("daily_data_", "").toLowerCase();
                 if (hasValidClosePrice(tableName)) {
                     tableNames.add(tableName);
                 }
@@ -86,7 +101,9 @@ public class DatabaseHelper {
     }
 
     private boolean hasValidClosePrice(String tableName) throws SQLException {
-        String query = "SELECT COUNT(*) FROM daily_data_" + tableName + " WHERE close >= 100";
+        // FIXED: Convert to lowercase for database operations
+        String normalizedTableName = tableName.toLowerCase();
+        String query = "SELECT COUNT(*) FROM daily_data_" + normalizedTableName + " WHERE close >= 100";
 
         try (Connection conn = connect();
              PreparedStatement pstmt = conn.prepareStatement(query);
@@ -95,7 +112,7 @@ public class DatabaseHelper {
                 return rs.getInt(1) > 0;
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error checking close price for table " + tableName, e);
+            LOGGER.log(Level.SEVERE, "Error checking close price for table " + normalizedTableName, e);
             throw e;
         }
         return false;
@@ -104,7 +121,10 @@ public class DatabaseHelper {
 
     public List<double[]> loadStockData(String tableName) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
-        String query = "SELECT date, close, high, low, open FROM daily_data_" + tableName + " ORDER BY date";
+        
+        // FIXED: Convert to lowercase for database operations
+        String normalizedTableName = tableName.toLowerCase();
+        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + " ORDER BY date";
 
         try (Connection conn = connect();
              PreparedStatement pstmt = conn.prepareStatement(query);
@@ -118,13 +138,35 @@ public class DatabaseHelper {
 
                 double dateAsDouble = date.getTime();
 
-                // Use the normalized value from the map
-                double normalizedTableName = tableNameMap.get(tableName);
+                // FIXED: Use lowercase for map lookup
+                Double normalizedValue = tableNameMap.get(normalizedTableName);
+                double normalizedTableNameValue;
+                
+                if (normalizedValue == null) {
+                    LOGGER.log(Level.WARNING, "Table name '" + normalizedTableName + "' not found in tableNameMap. Regenerating map...");
+                    try {
+                        generateTableNameMap();
+                        normalizedValue = tableNameMap.get(normalizedTableName);
+                        if (normalizedValue == null) {
+                            // Still null, use default value based on hash
+                            normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
+                            LOGGER.log(Level.WARNING, "Using hash-based normalized value: " + normalizedTableNameValue + " for table: " + normalizedTableName);
+                        } else {
+                            normalizedTableNameValue = normalizedValue;
+                        }
+                    } catch (SQLException e) {
+                        // Fallback to hash-based value
+                        normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
+                        LOGGER.log(Level.WARNING, "Failed to regenerate map, using hash fallback: " + normalizedTableNameValue + " for table: " + normalizedTableName);
+                    }
+                } else {
+                    normalizedTableNameValue = normalizedValue;
+                }
 
-                stockData.add(new double[]{normalizedTableName, close, high, low, open, dateAsDouble});
+                stockData.add(new double[]{normalizedTableNameValue, close, high, low, open, dateAsDouble});
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error loading stock data for table " + tableName, e);
+            LOGGER.log(Level.SEVERE, "Error loading stock data for table " + normalizedTableName, e);
             throw e;
         }
         return stockData;
@@ -132,7 +174,10 @@ public class DatabaseHelper {
 
     public List<double[]> loadStockDataAfterDate(String tableName, LocalDate afterDate) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
-        String query = "SELECT date, close, high, low, open FROM daily_data_" + tableName + 
+        
+        // FIXED: Convert to lowercase for database operations
+        String normalizedTableName = tableName.toLowerCase();
+        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + 
                        " WHERE date > ? ORDER BY date";
 
         try (Connection conn = connect();
@@ -149,13 +194,33 @@ public class DatabaseHelper {
                     double open = rs.getDouble("open");
 
                     double dateAsDouble = date.getTime();
-                    double normalizedTableName = tableNameMap.getOrDefault(tableName, 0.5);
+                    
+                    // FIXED: Use lowercase for map lookup
+                    Double normalizedValue = tableNameMap.get(normalizedTableName);
+                    double normalizedTableNameValue;
+                    
+                    if (normalizedValue == null) {
+                        LOGGER.log(Level.WARNING, "Table name '" + normalizedTableName + "' not found in tableNameMap for date query");
+                        try {
+                            generateTableNameMap();
+                            normalizedValue = tableNameMap.get(normalizedTableName);
+                            if (normalizedValue == null) {
+                                normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
+                            } else {
+                                normalizedTableNameValue = normalizedValue;
+                            }
+                        } catch (SQLException e) {
+                            normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
+                        }
+                    } else {
+                        normalizedTableNameValue = normalizedValue;
+                    }
 
-                    stockData.add(new double[]{normalizedTableName, close, high, low, open, dateAsDouble});
+                    stockData.add(new double[]{normalizedTableNameValue, close, high, low, open, dateAsDouble});
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error loading stock data after date for table " + tableName, e);
+            LOGGER.log(Level.SEVERE, "Error loading stock data after date for table " + normalizedTableName, e);
             throw e;
         }
         return stockData;
@@ -224,5 +289,26 @@ public class DatabaseHelper {
             LOGGER.log(Level.SEVERE, "Error saving predictions for stock symbol: " + stockSymbol, e);
             throw e;
         }
+    }
+
+    public void debugTableNameMap() {
+        System.out.println("=== TABLE NAME MAP DEBUG ===");
+        System.out.println("Map size: " + (tableNameMap != null ? tableNameMap.size() : "null"));
+        
+        if (tableNameMap != null && !tableNameMap.isEmpty()) {
+            System.out.println("Map contents:");
+            for (Map.Entry<String, Double> entry : tableNameMap.entrySet()) {
+                System.out.println("  " + entry.getKey() + " -> " + entry.getValue());
+            }
+        } else {
+            System.out.println("Map is empty or null!");
+            try {
+                List<String> tables = getAllStockTableNames();
+                System.out.println("Available tables: " + tables);
+            } catch (SQLException e) {
+                System.out.println("Error getting table names: " + e.getMessage());
+            }
+        }
+        System.out.println("=== END DEBUG ===");
     }
 }

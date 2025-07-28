@@ -27,22 +27,26 @@ public class TechnicalIndicators {
         double[] ema = new double[prices.length];
         double multiplier = 2.0 / (period + 1);
 
-        // FIXED: Proper EMA initialization
+        // FIXED: Better EMA initialization
         ema[0] = prices[0]; // Start with first price
 
         for (int i = 1; i < prices.length; i++) {
             if (i < period) {
-                // For early values, use SMA of available data
+                // FIXED: Use weighted average that gradually transitions to EMA
                 double sum = 0;
+                double weightSum = 0;
                 for (int j = 0; j <= i; j++) {
-                    sum += prices[j];
+                    double weight = Math.pow(1 - multiplier, i - j);
+                    sum += prices[j] * weight;
+                    weightSum += weight;
                 }
-                ema[i] = sum / (i + 1);
+                ema[i] = sum / weightSum;
             } else {
                 // Standard EMA calculation
                 ema[i] = ((prices[i] - ema[i - 1]) * multiplier) + ema[i - 1];
             }
         }
+        
         return ema;
     }
 
@@ -103,12 +107,64 @@ public class TechnicalIndicators {
         double[] emaLong = calculateEMA(prices, longPeriod);
         double[] macd = new double[prices.length];
         
-        // Calculate MACD line
+        // FIXED: Calculate MACD line with better initialization
         for (int i = 0; i < prices.length; i++) {
-            macd[i] = emaShort[i] - emaLong[i];
+            if (i < longPeriod) {
+                // For early values, use price momentum as approximation
+                if (i > 0) {
+                    double momentum = (prices[i] - prices[0]) / prices[0];
+                    macd[i] = momentum * prices[i] * 0.01; // Small initial MACD values
+                } else {
+                    macd[i] = 0.0;
+                }
+            } else {
+                // Standard MACD calculation
+                macd[i] = emaShort[i] - emaLong[i];
+            }
         }
         
         // Calculate signal line (EMA of MACD)
+        double[] signal = calculateEMA(macd, signalPeriod);
+        
+        // Calculate histogram
+        double[] histogram = new double[prices.length];
+        for (int i = 0; i < prices.length; i++) {
+            histogram[i] = macd[i] - signal[i];
+        }
+        
+        // FIXED: Add debugging for first few values
+        System.out.println("MACD Debug - First 5 values:");
+        for (int i = 0; i < Math.min(5, prices.length); i++) {
+            System.out.printf("Price[%d]=%.2f, EMA12=%.2f, EMA26=%.2f, MACD=%.4f, Signal=%.4f, Histogram=%.4f%n",
+                    i, prices[i], emaShort[i], emaLong[i], macd[i], signal[i], histogram[i]);
+        }
+        
+        return new double[][]{macd, signal, histogram};
+    }
+
+    public static double[][] calculateMACDEnhanced(double[] prices, int shortPeriod, int longPeriod, int signalPeriod) {
+        double[] emaShort = calculateEMA(prices, shortPeriod);
+        double[] emaLong = calculateEMA(prices, longPeriod);
+        double[] macd = new double[prices.length];
+        
+        // Calculate baseline price for reference
+        double baselinePrice = prices[0];
+        
+        for (int i = 0; i < prices.length; i++) {
+            if (i < Math.max(shortPeriod, longPeriod)) {
+                // FIXED: Use price momentum for early MACD values
+                double priceChange = prices[i] - baselinePrice;
+                double momentum = priceChange / baselinePrice;
+                
+                // Scale momentum to typical MACD range
+                macd[i] = momentum * baselinePrice * 0.02; // 2% scaling factor
+            } else {
+                // Standard MACD calculation
+                macd[i] = emaShort[i] - emaLong[i];
+            }
+        }
+        
+        // Calculate signal line
         double[] signal = calculateEMA(macd, signalPeriod);
         
         // Calculate histogram

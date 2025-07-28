@@ -8,9 +8,9 @@
         #metrics { white-space: pre; background: #f5f5f5; padding: 1em; border-radius: 5px; }
         .chart-container { 
             width: 600px; 
-            height: 400px; /* Add explicit height */
+            height: 400px;
             margin: 20px auto; 
-            position: relative; /* Add positioning */
+            position: relative;
         }
         .chart-container canvas {
             max-width: 100%;
@@ -25,6 +25,32 @@
         .training { background-color: #fef9e7; color: #8b6914; border: 1px solid #fad5a5; }
         .completed { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        /* FIXED: Add styles for training info section */
+        #training-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        #training-info h3 {
+            color: #495057;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid #4338ca;
+            padding-bottom: 0.5rem;
+        }
+        
+        #training-info p {
+            margin: 0.5rem 0;
+            color: #6c757d;
+        }
+        
+        #training-info strong {
+            color: #212529;
+        }
     </style>
 </head>
 <body>
@@ -38,6 +64,10 @@
         </div>
         <div id="progressText">0%</div>
     </div>
+    
+    <!-- FIXED: Move training info section ABOVE metrics -->
+    <div id="training-info"></div>
+    
     <h2>Training Metrics</h2>
     <div id="metrics"></div>
     <div class="chart-container">
@@ -46,7 +76,7 @@
     <div class="chart-container">
         <canvas id="lossChart"></canvas>
     </div>
-    <div id="training-info"></div>
+    
     <script>
         const trainBtn = document.getElementById('trainBtn');
         const incrementalBtn = document.getElementById('incrementalBtn');
@@ -70,6 +100,7 @@
                     statusDiv.textContent = "Training completed successfully!";
                     statusDiv.className = 'completed';
                     await fetchMetrics();
+                    await fetchTrainingStatus(); // Refresh status after training
                 } else {
                     throw new Error('Training failed');
                 }
@@ -152,6 +183,7 @@
                 statusDiv.textContent = "Incremental learning completed!";
                 statusDiv.className = 'completed';
                 await fetchMetrics();
+                await fetchTrainingStatus(); // Refresh status after incremental training
             } catch (error) {
                 statusDiv.textContent = "Incremental learning failed: " + error.message;
                 statusDiv.className = 'error';
@@ -163,12 +195,34 @@
         async function fetchMetrics() {
             try {
                 const res = await fetch('/api/lstm/metrics');
-                const text = await res.text();
-                metricsDiv.textContent = text;
-                updateCharts(text);
+                
+                if (res.ok) {
+                    const contentType = res.headers.get('content-type');
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        // Handle JSON response (model not trained)
+                        const jsonResponse = await res.json();
+                        if (jsonResponse.status === 'not_trained') {
+                            metricsDiv.textContent = `${jsonResponse.message}\n\n${jsonResponse.instruction}`;
+                            metricsDiv.style.fontStyle = 'italic';
+                            metricsDiv.style.color = '#666';
+                        } else {
+                            metricsDiv.textContent = jsonResponse.message || 'Unknown error occurred';
+                        }
+                    } else {
+                        // Handle text response (metrics file content)
+                        const text = await res.text();
+                        metricsDiv.textContent = text;
+                        metricsDiv.style.fontStyle = 'normal';
+                        metricsDiv.style.color = 'inherit';
+                        updateCharts(text);
+                    }
+                } else {
+                    metricsDiv.textContent = 'Failed to load metrics. Please try again.';
+                }
             } catch (error) {
                 console.error('Error fetching metrics:', error);
-                metricsDiv.textContent = 'Error loading metrics';
+                metricsDiv.textContent = 'Model not trained yet. Please train the model first to view metrics.';
             }
         }
 
@@ -267,24 +321,30 @@
                 const res = await fetch('/api/lstm/training-status');
                 const status = await res.json();
                 
+                // FIXED: Enhanced training status display
                 document.getElementById('training-info').innerHTML = `
-                    <h3>Training Status</h3>
-                    <p><strong>Last Training:</strong> ${status.lastTrainingDate}</p>
-                    <p><strong>Days Since Training:</strong> ${status.daysSinceTraining}</p>
-                    <p><strong>Model Exists:</strong> ${status.modelExists ? 'Yes' : 'No'}</p>
-                    <p><strong>Next Training Type:</strong> ${status.needsIncremental ? 'Incremental Learning' : 'Use Existing Model'}</p>
-                    <p><strong>Model Version:</strong> ${status.version}</p>
-                    <p><strong>Hidden Size:</strong> ${status.hiddenSize}</p>
-                    <p><strong>Input Size:</strong> ${status.inputSize}</p>
+                    <h3>🔧 Training Status</h3>
+                    <p><strong>Last Training:</strong> ${status.lastTrainingDate || 'Never'}</p>
+                    <p><strong>Days Since Training:</strong> ${status.daysSinceTraining || 0}</p>
+                    <p><strong>Model Exists:</strong> ${status.modelExists ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>Next Training Type:</strong> ${status.needsIncremental ? '🔄 Incremental Learning' : '✅ Use Existing Model'}</p>
+                    <p><strong>Model Version:</strong> ${status.version || 'N/A'}</p>
+                    <p><strong>Hidden Size:</strong> ${status.hiddenSize || 'N/A'}</p>
+                    <p><strong>Input Size:</strong> ${status.inputSize || 'N/A'}</p>
+                    ${status.modelSize ? `<p><strong>Model Size:</strong> ${status.modelSize}</p>` : ''}
                 `;
             } catch (error) {
                 console.error('Error fetching training status:', error);
+                document.getElementById('training-info').innerHTML = `
+                    <h3>🔧 Training Status</h3>
+                    <p style="color: #dc3545;"><strong>Error:</strong> Failed to load training status</p>
+                `;
             }
         }
 
         // Initialize page - fetch once on load
         window.addEventListener('DOMContentLoaded', async () => {
-            await fetchTrainingStatus();
+            await fetchTrainingStatus(); // This will now appear ABOVE metrics
             await fetchMetrics(); // Initial metrics load
         });
     </script>
