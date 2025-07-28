@@ -1,0 +1,79 @@
+=== MODEL CONFIGURATION ===
+Version: v1
+Hidden Size: 16
+Dense Size: 3
+Input Size: 18
+Output Size: 1
+Epochs: 10
+Batch Size: 16
+Training Rate: 0.01
+Threshold: 1.0
+Interval: 100
+
+=== DATASET INFORMATION ===
+Training data size: 163501
+Validation data size: 109001
+Final test data size: 109001
+Total data points: 381503
+Train/Validation/Test split: 42.9%/28.6%/28.6%
+
+=== MODEL PERFORMANCE ===
+Final Test Accuracy: 0.1531
+Final Test Loss: 0.8414
+Overall Average Training Accuracy: 0.1531
+Overall Average Training Loss: 0.8414
+
+=== CONFUSION MATRIX ===
+True Positives (TP): 46472
+False Negatives (FN): 125
+False Positives (FP): 52972
+True Negatives (TN): 181
+Total Predictions: 99750
+
+Matrix Format:
+             Predicted
+           Pos    Neg
+Actual Pos 46472    125
+       Neg 52972    181
+
+=== POSITIVE CLASS METRICS ===
+Precision: 0.4673 (46472/99444)
+Recall (Sensitivity): 0.9973 (46472/46597)
+F1 Score: 0.6364
+
+=== NEGATIVE CLASS METRICS ===
+Precision: 0.5915 (181/306)
+Recall (Specificity): 0.0034 (181/53153)
+F1 Score: 0.0068
+
+=== OVERALL METRICS ===
+Overall Accuracy: 0.4677 (46653/99750)
+Overall Error Rate: 0.5323 (53097/99750)
+
+=== TECHNICAL INDICATORS USED ===
+1. EMA (Exponential Moving Average) - Period: 16
+2. SMA (Simple Moving Average) - Period: 20
+3. RSI (Relative Strength Index) - Period: 3
+4. ATR (Average True Range) - Period: 14
+5. MACD (Moving Average Convergence Divergence) - Periods: 12,26,9
+6. Bollinger Bands - Period: 20, Std Dev: 2.0
+7. Stochastic Oscillator - Period: 14
+
+=== SAMPLE TECHNICAL INDICATORS (First 5 Rows) ===
+Row 0: EMA=207.00, SMA=207.00, RSI=50.00, ATR=8.00, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=211.14, BB_Lower=202.86, Stoch_K=0.00, Stoch_D=0.00
+Row 1: EMA=203.00, SMA=203.00, RSI=50.00, ATR=8.00, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=202.98, BB_Lower=195.02, Stoch_K=0.00, Stoch_D=0.00
+Row 2: EMA=200.67, SMA=200.67, RSI=50.00, ATR=6.33, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=199.92, BB_Lower=192.08, Stoch_K=0.00, Stoch_D=0.00
+Row 3: EMA=201.00, SMA=201.00, RSI=35.29, ATR=6.25, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=206.04, BB_Lower=197.96, Stoch_K=31.58, Stoch_D=10.53
+Row 4: EMA=200.40, SMA=200.40, RSI=26.09, ATR=5.80, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=201.96, BB_Lower=194.04, Stoch_K=10.53, Stoch_D=14.04
+
+=== TRAINING EPOCH DETAILS ===
+Epoch   0: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   1: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   2: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   3: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   4: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   5: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   6: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   7: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   8: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366
+Epoch   9: Accuracy = 0.1531, Loss = 0.8414, Val_Accuracy = 0.1579, Val_Loss = 0.8366

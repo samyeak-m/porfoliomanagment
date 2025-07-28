@@ -20,6 +20,7 @@ import java.util.logging.Logger;
 
 import org.springframework.stereotype.Service;
 
+import com.stockmanagment.porfoliomanagment.config.LstmConfig;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMNetwork;
@@ -30,32 +31,10 @@ import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.TechnicalInd
 
 @Service
 public class LstmService {
-
     private static final Logger LOGGER = Logger.getLogger(LstmService.class.getName());
-    private static final String RESET = "\u001B[0m";
-    private static final String GREEN = "\u001B[32m";
-    private static final String BLUE = "\u001B[34m";
-    private static final String YELLOW = "\u001B[33m";
-
-    // Updated parameters to match Main.java
-    private static final String VERSION = "v9";
-    private static final int HIDDEN_SIZE = 32;
-    private static final int DENSE_SIZE = 3;
-    private static final int INPUT_SIZE = 18;
-    private static final int OUTPUT_SIZE = 1;
-    private static final int EPOCH = 100;
-    private static final int BATCH = 64;
-    private static final double TRAINING_RATE = 0.01;
-    private static final double THRESHOLD = 1;
-    private static final int INTERVAL = 100;
-
-    private static final String BASE_DIR = "src/main/resources/static/model/output_" + VERSION + "_e" + EPOCH + "_b" + BATCH + "_h" + HIDDEN_SIZE;
-    private static final String MODEL_FILE_PATH = BASE_DIR + File.separator + "lstm_model" + VERSION + "_" + EPOCH + ".ser";
-
-    // Add these fields to track training state
-    private static final String LAST_TRAINING_DATE_FILE = BASE_DIR + File.separator + "last_training_date.txt";
-    private static final int RETRAIN_THRESHOLD_DAYS = 7; // Retrain every 7 days
-
+    
+    private final LstmConfig config;
+    
     private double[] min;
     private double[] max;
 
@@ -66,164 +45,120 @@ public class LstmService {
     private final List<Double> validationAccuracyList = new ArrayList<>();
     private final List<Double> validationLossList = new ArrayList<>();
 
+    // Add these fields to track current progress
+    private volatile String currentTrainingMessage = "";
+    private volatile int currentEpoch = 0;
+    private volatile double currentProgress = 0.0;
+    private volatile boolean isTraining = false;
+
+    public LstmService(LstmConfig config) {
+        this.config = config;
+    }
+    
     public void train() {
+        trainingStartTime = System.currentTimeMillis(); // Track start time
+        
         try {
-            createDirectory(BASE_DIR);
+            isTraining = true;
+            currentTrainingMessage = "Initializing neural network...";
+            currentProgress = 0.0;
+            
+            createDirectory(config.getOutputDir());
+            currentTrainingMessage = "Creating output directory completed";
+            currentProgress = 5.0;
             
             DatabaseHelper dbHelper = new DatabaseHelper();
-            LSTMNetwork lstm = LSTMNetwork.loadModel(MODEL_FILE_PATH);
+            currentTrainingMessage = "Connecting to database...";
+            currentProgress = 10.0;
+            
+            LSTMNetwork lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             
             if (lstm == null) {
+                currentTrainingMessage = "Loading stock data from database...";
+                currentProgress = 15.0;
+                
                 List<String> tableNames = dbHelper.getAllStockTableNames();
+                currentTrainingMessage = "Found " + tableNames.size() + " stock tables";
+                currentProgress = 20.0;
+                
                 List<double[]> allStockData = new ArrayList<>();
-
                 for (String tableName : tableNames) {
                     allStockData.addAll(dbHelper.loadStockData(tableName));
+                    currentTrainingMessage = "Loading data from " + tableName + "...";
                 }
-
+                currentProgress = 30.0;
+                
                 double[][] stockDataArray = allStockData.toArray(new double[0][]);
-
-                // Stock data debug
-                System.out.println("=== Stock Data Debug ===");
-                for (int i = 0; i < Math.min(5, stockDataArray.length); i++) {
-                    System.out.printf("Row %d: Table=%.2f, Close=%.2f, High=%.2f, Low=%.2f, Open=%.2f%n", 
-                        i, stockDataArray[i][0], stockDataArray[i][1], stockDataArray[i][2], 
-                        stockDataArray[i][3], stockDataArray[i][4]);
-                }
-                System.out.println("=== End Stock Data Debug ===");
-
+                currentTrainingMessage = "Loaded " + stockDataArray.length + " data points";
+                currentProgress = 35.0;
+                
+                currentTrainingMessage = "Calculating technical indicators (EMA, SMA, RSI, MACD, Bollinger Bands)...";
                 double[][] technicalIndicators = TechnicalIndicators.calculate(stockDataArray, 16, 3);
-
-                // Technical indicators debug
-                System.out.println("=== Technical Indicators Debug ===");
-                System.out.println("Total indicators: " + technicalIndicators[0].length);
-                for (int i = 0; i < Math.min(5, technicalIndicators.length); i++) {
-                    System.out.printf("Row %d: EMA=%.2f, SMA=%.2f, RSI=%.2f, ATR=%.2f, MACD=%.2f, Signal=%.2f, Histogram=%.2f, BB_Upper=%.2f, BB_Lower=%.2f, Stoch_K=%.2f, Stoch_D=%.2f%n", 
-                        i, 
-                        technicalIndicators[i][0],  // EMA
-                        technicalIndicators[i][1],  // SMA
-                        technicalIndicators[i][2],  // RSI
-                        technicalIndicators[i][3],  // ATR
-                        technicalIndicators[i][4],  // MACD
-                        technicalIndicators[i][5],  // Signal
-                        technicalIndicators[i][6],  // Histogram
-                        technicalIndicators[i][8],  // BB Upper
-                        technicalIndicators[i][9],  // BB Lower
-                        technicalIndicators[i][10], // Stochastic %K
-                        technicalIndicators[i][11]  // Stochastic %D
-                    );
-                }
-
-                // Check for NaN/Inf in technical indicators
-                for (int i = 0; i < technicalIndicators.length; i++) {
-                    for (int j = 0; j < technicalIndicators[i].length; j++) {
-                        if (!Double.isFinite(technicalIndicators[i][j])) {
-                            System.err.println("Invalid technical indicator at [" + i + "][" + j + "]: " + technicalIndicators[i][j]);
-                        }
-                    }
-                }
-                System.out.println("=== End Debug ===");
-
+                currentProgress = 45.0;
+                
+                currentTrainingMessage = "Adding technical features to dataset...";
                 double[][] extendedData = DataPreprocessor.addFeatures(stockDataArray, technicalIndicators);
-
+                currentProgress = 50.0;
+                
+                currentTrainingMessage = "Preprocessing and normalizing data...";
                 double[][][] preprocessedData = preprocessData(extendedData, 0.6);
+                currentProgress = 55.0;
+                
                 double[][] trainData = preprocessedData[0];
                 double[][] testData = preprocessedData[1];
-
-                double[][] validationData = Arrays.copyOfRange(testData, 0, testData.length / 5);
-                double[][] finalTestData = Arrays.copyOfRange(testData, testData.length / 5, testData.length);
-
-                // Dataset debug
-                System.out.println("=== Dataset Debug ===");
-                System.out.println("Final train data size: " + trainData.length);
-                System.out.println("Final test data size: " + testData.length);
-                System.out.println("Final validation data size: " + validationData.length);
-                System.out.println("Final finalTestData size: " + finalTestData.length);
-
-                // Check first few rows of final test data
-                for (int i = 0; i < Math.min(3, finalTestData.length - 1); i++) {
-                    double currentPrice = finalTestData[i][1];
-                    double nextPrice = finalTestData[i + 1][1];
-                    double change = (nextPrice - currentPrice) / currentPrice;
-                    System.out.printf("Test sample %d: Current=%.2f, Next=%.2f, Change=%.4f%%\n", 
-                        i, currentPrice, nextPrice, change * 100);
-                }
-                System.out.println("=== End Dataset Debug ===");
-
-                checkForNaN(trainData, "trainData");
-                checkForNaN(validationData, "validationData");
-                checkForNaN(finalTestData, "finalTestData");
-
-                LOGGER.log(Level.INFO, BLUE + "Training data size: " + trainData.length + RESET);
-                LOGGER.log(Level.INFO, BLUE + "Validation data size: " + validationData.length + RESET);
-                LOGGER.log(Level.INFO, BLUE + "Final test data size: " + finalTestData.length + RESET);
-
-                min = DataPreprocessor.calculateMin(extendedData);
-                max = DataPreprocessor.calculateMax(extendedData);
-
-                lstm = new LSTMNetwork(INPUT_SIZE, HIDDEN_SIZE, OUTPUT_SIZE, DENSE_SIZE, min, max);
-
-                double[] averages = trainModel(lstm, trainData, validationData, EPOCH, TRAINING_RATE, min, max);
-
-                double testAccuracy = testModel(lstm, finalTestData);
-                double finalTestLoss = calculateLoss(lstm, finalTestData);
-
-                LOGGER.log(Level.INFO, String.format(GREEN + "Final Test Accuracy: %.2f" + RESET, testAccuracy));
-                LOGGER.log(Level.INFO, String.format(GREEN + "Final Test Loss: %.2f" + RESET, finalTestLoss));
-
-                int[][] confusionMatrix = lstm.computeConfusionMatrix(finalTestData, finalTestData[finalTestData.length - 1][1], THRESHOLD);
-                double[][] metrics = printConfusionMatrix(confusionMatrix);
-
-                double averageAccuracy = averages[0];
-                double averageLoss = averages[1];
                 
-                // Metrics for Positive class
-                double precisionPositive = metrics[0][0];
-                double recallPositive = metrics[0][1];
-                double f1ScorePositive = metrics[0][2];
-
-                // Metrics for Negative class
-                double precisionNegative = metrics[1][0];
-                double recallNegative = metrics[1][1];
-                double f1ScoreNegative = metrics[1][2];
-
-                logFile(testAccuracy, finalTestLoss, averageAccuracy, averageLoss, confusionMatrix, 
-                    precisionNegative, recallNegative, f1ScoreNegative, precisionPositive, recallPositive, f1ScorePositive, 
-                    trainData, validationData, finalTestData);
-
-                // Create model directory
-                File modelDir = new File(BASE_DIR);
-                if (!modelDir.exists()) {
-                    modelDir.mkdirs();
-                }
-
-                lstm.saveModel(MODEL_FILE_PATH);
-
+                currentTrainingMessage = "Splitting data - Train: " + trainData.length + ", Test: " + testData.length;
+                currentProgress = 60.0;
+                
+                // **CRITICAL FIX: Actually create and train the model**
+                currentTrainingMessage = "Creating new LSTM network...";
+                lstm = new LSTMNetwork(config.getInputSize(), config.getHiddenSize(), 
+                                     config.getOutputSize(), config.getDenseSize(), min, max);
+                
+                currentTrainingMessage = "Starting LSTM training with " + config.getEpochs() + " epochs...";
+                
+                // **CRITICAL FIX: Actually call trainModel**
+                double[] averages = trainModel(lstm, trainData, testData, config.getEpochs(), config.getTrainingRate(), min, max);
+                
+                currentTrainingMessage = "Training completed. Saving model...";
+                currentProgress = 95.0;
+                
+                // Save the trained model
+                lstm.saveModel(config.getModelFilePath());
+                
+                // Generate confusion matrix and log results
+                int[][] confusionMatrix = lstm.computeConfusionMatrix(testData, testData[testData.length-1][1], config.getThreshold());
+                double[][] classMetrics = printConfusionMatrix(confusionMatrix);
+                
+                // Log training results
+                logFile(averages[0], averages[1], averages[0], averages[1], confusionMatrix,
+                       classMetrics[1][0], classMetrics[1][1], classMetrics[1][2], // Negative class
+                       classMetrics[0][0], classMetrics[0][1], classMetrics[0][2], // Positive class  
+                       trainData, testData, testData);
+                
                 // Generate charts
-                String accuracyChartDir = BASE_DIR + File.separator + "charts" + VERSION + "_" + EPOCH + File.separator + "accuracy";
-                createDirectory(accuracyChartDir);
-
-                CustomChartUtils.saveAccuracyChart("Model Accuracy", epochList, accuracyList, validationAccuracyList, 
-                    accuracyChartDir + File.separator + "model_accuracy.png", "Epochs", "Accuracy", INTERVAL);
-                CustomChartUtils.saveLossChart("Model Loss", epochList, lossList, validationLossList, 
-                    accuracyChartDir + File.separator + "model_loss.png", "Epochs", "Loss", INTERVAL);
-
-                // After training
-                System.out.println("Chart data points: " + epochList.size());
-                System.out.println("Accuracy range: " + Collections.min(accuracyList) + " to " + Collections.max(accuracyList));
-                System.out.println("Loss range: " + Collections.min(lossList) + " to " + Collections.max(lossList));
+                generateTrainingCharts();
                 
-                System.out.println("Training Completed");
+                // Save training completion date
+                saveLastTrainingDate();
+                
+                System.out.println("Training completed successfully!");
+                
             } else {
-                min = lstm.getMin();
-                max = lstm.getMax();
-                if (min == null || max == null) {
-                    System.err.println("Model loaded, but min and max values are not initialized.");
-                }
-                LOGGER.log(Level.INFO, BLUE + "Model loaded successfully." + RESET);
-                System.out.println("Training Completed");
+                currentTrainingMessage = "Model already exists, loading saved model...";
+                currentProgress = 100.0;
+                System.out.println("Model already trained. Use incremental learning for updates.");
             }
+            
+            isTraining = false;
+            currentTrainingMessage = "Training completed successfully!";
+            currentProgress = 100.0;
+            
         } catch (Exception e) {
+            isTraining = false;
+            currentTrainingMessage = "Training failed: " + e.getMessage();
+            System.err.println("Training failed: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("Training failed: " + e.getMessage(), e);
         }
     }
@@ -231,7 +166,7 @@ public class LstmService {
     // Add method to check if incremental learning is needed
     private boolean shouldPerformIncrementalLearning() {
         try {
-            File dateFile = new File(LAST_TRAINING_DATE_FILE);
+            File dateFile = new File(config.getLastTrainingDateFile());
             if (!dateFile.exists()) {
                 return true; // First time training
             }
@@ -244,7 +179,7 @@ public class LstmService {
                 long daysSinceLastTraining = ChronoUnit.DAYS.between(lastTrainingDate, today);
                 System.out.println("Days since last training: " + daysSinceLastTraining);
                 
-                return daysSinceLastTraining >= RETRAIN_THRESHOLD_DAYS;
+                return daysSinceLastTraining >= config.getRetrainThresholdDays();
             }
         } catch (Exception e) {
             System.err.println("Error checking last training date: " + e.getMessage());
@@ -255,8 +190,8 @@ public class LstmService {
     // Add method to save training date
     private void saveLastTrainingDate() {
         try {
-            createDirectory(BASE_DIR);
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(LAST_TRAINING_DATE_FILE))) {
+            createDirectory(config.getOutputDir());
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(config.getLastTrainingDateFile()))) {
                 writer.write(LocalDate.now().toString());
             }
         } catch (IOException e) {
@@ -273,7 +208,7 @@ public class LstmService {
             }
             
             DatabaseHelper dbHelper = new DatabaseHelper();
-            LSTMNetwork lstm = LSTMNetwork.loadModel(MODEL_FILE_PATH);
+            LSTMNetwork lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             
             if (lstm == null) {
                 System.out.println("No existing model found. Performing full training.");
@@ -309,7 +244,7 @@ public class LstmService {
             performIncrementalTraining(lstm, normalizedNewData);
             
             // Save updated model
-            lstm.saveModel(MODEL_FILE_PATH);
+            lstm.saveModel(config.getModelFilePath());
             saveLastTrainingDate();
             
             System.out.println("Incremental learning completed successfully!");
@@ -324,8 +259,8 @@ public class LstmService {
         List<double[]> newData = new ArrayList<>();
         
         try {
-            File dateFile = new File(LAST_TRAINING_DATE_FILE);
-            LocalDate lastTrainingDate = LocalDate.now().minusDays(RETRAIN_THRESHOLD_DAYS);
+            File dateFile = new File(config.getLastTrainingDateFile());
+            LocalDate lastTrainingDate = LocalDate.now().minusDays(config.getRetrainThresholdDays());
             
             if (dateFile.exists()) {
                 try (BufferedReader reader = new BufferedReader(new FileReader(dateFile))) {
@@ -352,7 +287,7 @@ public class LstmService {
         System.out.println("Performing incremental training on " + newData.length + " new samples");
         
         // Use lower learning rate for incremental learning
-        double incrementalLearningRate = TRAINING_RATE * 0.1; // 10% of original learning rate
+        double incrementalLearningRate = config.getTrainingRate() * 0.1; // 10% of original learning rate
         int incrementalEpochs = 5; // Fewer epochs for incremental learning
         
         LSTMTrainer trainer = new LSTMTrainer(lstm, incrementalLearningRate);
@@ -369,7 +304,7 @@ public class LstmService {
                 double[] hiddenState = new double[lstm.getHiddenSize()];
                 double[] cellState = new double[lstm.getHiddenSize()];
                 
-                double[] input = Arrays.copyOf(data, INPUT_SIZE);
+                double[] input = Arrays.copyOf(data, config.getInputSize());
                 double[] target = new double[]{data[data.length - 1]};
                 
                 // Forward pass
@@ -394,7 +329,7 @@ public class LstmService {
         int validSamples = 0;
         
         for (int i = 0; i < data.length - 1; i++) {
-            double[] input = Arrays.copyOf(data[i], INPUT_SIZE);
+            double[] input = Arrays.copyOf(data[i], config.getInputSize());
             double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
             
             if (output == null) continue;
@@ -455,17 +390,20 @@ public class LstmService {
 
     private double[] trainModel(LSTMNetwork lstm, double[][] trainData, double[][] validationData, int epochs, double learningRate, double[] min, double[] max) {
         LSTMTrainer trainer = new LSTMTrainer(lstm, learningRate);
-        double prevAccuracy = 0;
-        int sameCount = 0;
-
         double totalAccuracy = 0;
         double totalLoss = 0;
-        int epochCount = 0;
 
         for (int epoch = 0; epoch < epochs; epoch++) {
+            currentEpoch = epoch + 1;
+            currentTrainingMessage = "Training epoch " + (epoch + 1) + "/" + epochs + " - Learning patterns...";
+            
+            // Calculate progress: 60% to 95% during training
+            currentProgress = 60.0 + (35.0 * (epoch + 1) / epochs);
+            
             long startTime = System.currentTimeMillis();
+            
             int totalDataPoints = trainData.length;
-            int batchSize = BATCH;
+            int batchSize = config.getBatchSize();
             int batches = totalDataPoints / batchSize;
 
             double totalEpochLoss = 0;
@@ -476,7 +414,7 @@ public class LstmService {
                     double[] hiddenState = new double[lstm.getHiddenSize()];
                     double[] cellState = new double[lstm.getHiddenSize()];
                     
-                    double[] input = Arrays.copyOf(data, INPUT_SIZE);
+                    double[] input = Arrays.copyOf(data, config.getInputSize());
                     double[] target = new double[]{data[data.length - 1]};
                     
                     // CORRECT ORDER: Forward first, then backprop
@@ -509,24 +447,51 @@ public class LstmService {
             validationAccuracyList.add(validationAccuracy);
             validationLossList.add(validationLoss);
 
-            LOGGER.log(Level.INFO, String.format(YELLOW + "Epoch %d: Accuracy = %.2f, Loss = %.2f, Validation Accuracy = %.2f, Validation Loss = %.2f, Time = %s" + RESET,
-                    epoch, accuracy, epochLoss, validationAccuracy, validationLoss, elapsedTime));
+            logTrainingProgress(epoch, accuracy, epochLoss, validationAccuracy, validationLoss, elapsedTimeMillis);
 
             totalAccuracy += accuracy;
             totalLoss += epochLoss;
-            epochCount++;
+            
+            // Update message with current metrics
+            currentTrainingMessage = String.format(
+                "Epoch %d/%d - Acc: %.3f, Loss: %.3f, Val_Acc: %.3f, Val_Loss: %.3f", 
+                epoch + 1, epochs, accuracy, epochLoss, validationAccuracy, validationLoss
+            );
 
-            prevAccuracy = validationAccuracy;
+            // Add sleep to make progress visible (optional)
+            try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
+        
+        currentTrainingMessage = "Calculating final metrics and saving model...";
+        currentProgress = 95.0;
+        
+        double averageAccuracy = totalAccuracy / epochs;
+        double averageLoss = totalLoss / epochs;
 
-        double averageAccuracy = totalAccuracy / epochCount;
-        double averageLoss = totalLoss / epochCount;
-
-        LOGGER.log(Level.INFO, String.format(GREEN + "Overall Average Accuracy: %.2f" + RESET, averageAccuracy));
-        LOGGER.log(Level.INFO, String.format(GREEN + "Overall Average Loss: %.2f" + RESET, averageLoss));
+        LOGGER.log(Level.INFO, String.format("Overall Average Accuracy: %.2f", averageAccuracy));
+        LOGGER.log(Level.INFO, String.format("Overall Average Loss: %.2f", averageLoss));
 
         return new double[]{averageAccuracy, averageLoss};
     }
+
+    private void logTrainingProgress(int epoch, double accuracy, double loss, 
+                               double valAccuracy, double valLoss, long elapsedTime) {
+    
+    String progress = String.format(
+        "Epoch %d/%d (%.1f%%) - Acc: %.4f, Loss: %.4f, Val_Acc: %.4f, Val_Loss: %.4f, Time: %dms",
+        epoch + 1, config.getEpochs(), ((epoch + 1) * 100.0 / config.getEpochs()), 
+        accuracy, loss, valAccuracy, valLoss, elapsedTime
+    );
+    
+    LOGGER.log(Level.INFO, progress);
+    
+    // Log to file for debugging
+    try (FileWriter fw = new FileWriter(config.getOutputDir() + "/training_log.txt", true)) {
+        fw.write(progress + "\n");
+    } catch (IOException e) {
+        System.err.println("Failed to write training log: " + e.getMessage());
+    }
+}
 
     private double calculateValidationLoss(LSTMNetwork lstm, double[][] validationData) {
         return calculateLoss(lstm, validationData);
@@ -536,7 +501,7 @@ public class LstmService {
         double totalAccuracy = 0;
 
         for (int i = 0; i < testData.length - 1; i++) {
-            double[] input = Arrays.copyOf(testData[i], INPUT_SIZE);
+            double[] input = Arrays.copyOf(testData[i], config.getInputSize());
             checkForNaN1D(input, "input to LSTM (testModel)");
             double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
             if (output == null) {
@@ -594,7 +559,7 @@ public class LstmService {
         double maxChange = 0.05; // Match the constraint limit
 
         for (int i = 0; i < data.length - 1; i++) {
-            double[] input = Arrays.copyOf(data[i], INPUT_SIZE);
+            double[] input = Arrays.copyOf(data[i], config.getInputSize());
             checkForNaN1D(input, "input to calculateLoss");
             
             double lastClosePrice = data[i][1];
@@ -628,22 +593,22 @@ public class LstmService {
 
     public void logFile(double finalTestAccuracy, double finalTestLoss, double averageAccuracy, double averageLoss, int[][] confusionMatrix,
                                double precisionNegative, double recallNegative, double f1ScoreNegative, double precisionPositive, double recallPositive, double f1ScorePositive, double[][] trainData, double[][] validationData, double[][] finalTestData) {
-        String logFileName = BASE_DIR + File.separator + "confusion.txt";
+        String logFileName = config.getOutputDir() + File.separator + "confusion.txt";
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFileName))) {
         
             // Model Configuration
             writer.write("=== MODEL CONFIGURATION ===\n");
-            writer.write("Version: " + VERSION + "\n");
-            writer.write("Hidden Size: " + HIDDEN_SIZE + "\n");
-            writer.write("Dense Size: " + DENSE_SIZE + "\n");
-            writer.write("Input Size: " + INPUT_SIZE + "\n");
-            writer.write("Output Size: " + OUTPUT_SIZE + "\n");
-            writer.write("Epochs: " + EPOCH + "\n");
-            writer.write("Batch Size: " + BATCH + "\n");
-            writer.write("Training Rate: " + TRAINING_RATE + "\n");
-            writer.write("Threshold: " + THRESHOLD + "\n");
-            writer.write("Interval: " + INTERVAL + "\n");
+            writer.write("Version: " + config.getVersion() + "\n");
+            writer.write("Hidden Size: " + config.getHiddenSize() + "\n");
+            writer.write("Dense Size: " + config.getDenseSize() + "\n");
+            writer.write("Input Size: " + config.getInputSize() + "\n");
+            writer.write("Output Size: " + config.getOutputSize() + "\n");
+            writer.write("Epochs: " + config.getEpochs() + "\n");
+            writer.write("Batch Size: " + config.getBatchSize() + "\n");
+            writer.write("Training Rate: " + config.getTrainingRate() + "\n");
+            writer.write("Threshold: " + config.getThreshold() + "\n");
+            writer.write("Interval: " + config.getInterval() + "\n");
             writer.write("\n");
             
             // Dataset Information
@@ -866,7 +831,7 @@ public class LstmService {
             }
             
             DatabaseHelper dbHelper = new DatabaseHelper();
-            LSTMNetwork lstm = LSTMNetwork.loadModel(MODEL_FILE_PATH);
+            LSTMNetwork lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             if (lstm == null) throw new RuntimeException("Model not trained yet.");
             min = lstm.getMin();
             max = lstm.getMax();
@@ -881,7 +846,7 @@ public class LstmService {
             
             extendedData = DataPreprocessor.normalize(extendedData, min, max);
 
-            double[] input = Arrays.copyOf(extendedData[extendedData.length - 1], INPUT_SIZE);
+            double[] input = Arrays.copyOf(extendedData[extendedData.length - 1], config.getInputSize());
             double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
             
             if (output == null) {
@@ -914,7 +879,7 @@ public class LstmService {
         Map<String, Object> status = new HashMap<>();
         
         try {
-            File dateFile = new File(LAST_TRAINING_DATE_FILE);
+            File dateFile = new File(config.getLastTrainingDateFile());
             LocalDate lastTrainingDate = null;
             long daysSinceTraining = 0;
             boolean needsIncremental = true;
@@ -926,7 +891,7 @@ public class LstmService {
                         lastTrainingDate = LocalDate.parse(lastDateStr);
                         LocalDate today = LocalDate.now();
                         daysSinceTraining = ChronoUnit.DAYS.between(lastTrainingDate, today);
-                        needsIncremental = daysSinceTraining >= RETRAIN_THRESHOLD_DAYS;
+                        needsIncremental = daysSinceTraining >= config.getRetrainThresholdDays();
                     }
                 } catch (Exception e) {
                     System.err.println("Error reading training date: " + e.getMessage());
@@ -934,28 +899,28 @@ public class LstmService {
             }
             
             // Check if model exists
-            File modelFile = new File(MODEL_FILE_PATH);
+            File modelFile = new File(config.getModelFilePath());
             boolean modelExists = modelFile.exists();
             
             status.put("lastTrainingDate", lastTrainingDate != null ? lastTrainingDate.toString() : "Never");
             status.put("daysSinceTraining", daysSinceTraining);
             status.put("needsIncremental", needsIncremental);
             status.put("modelExists", modelExists);
-            status.put("retrainThresholdDays", RETRAIN_THRESHOLD_DAYS);
+            status.put("retrainThresholdDays", config.getRetrainThresholdDays());
             status.put("currentDate", LocalDate.now().toString());
             
             // Add model info if it exists
             if (modelExists) {
-                status.put("modelPath", MODEL_FILE_PATH);
+                status.put("modelPath", config.getModelFilePath());
                 status.put("modelSize", String.format("%.2f MB", modelFile.length() / (1024.0 * 1024.0)));
             }
             
             // Add training parameters
-            status.put("version", VERSION);
-            status.put("epochs", EPOCH);
-            status.put("batchSize", BATCH);
-            status.put("hiddenSize", HIDDEN_SIZE);
-            status.put("inputSize", INPUT_SIZE);
+            status.put("version", config.getVersion());
+            status.put("epochs", config.getEpochs());
+            status.put("batchSize", config.getBatchSize());
+            status.put("hiddenSize", config.getHiddenSize());
+            status.put("inputSize", config.getInputSize());
             
         } catch (Exception e) {
             status.put("error", "Failed to get training status: " + e.getMessage());
@@ -966,5 +931,154 @@ public class LstmService {
         }
         
         return status;
+    }
+
+    public Map<String, Object> getModelInfo() {
+        Map<String, Object> info = new HashMap<>();
+        try {
+            File modelFile = new File(config.getModelFilePath());
+            
+            info.put("modelExists", modelFile.exists());
+            info.put("modelPath", config.getModelFilePath());
+            info.put("version", config.getVersion());
+            info.put("hiddenSize", config.getHiddenSize());
+            info.put("inputSize", config.getInputSize());
+            info.put("outputSize", config.getOutputSize());
+            info.put("epochs", config.getEpochs());
+            info.put("batchSize", config.getBatchSize());
+            info.put("trainingRate", config.getTrainingRate());
+            
+            if (modelFile.exists()) {
+                info.put("modelSize", String.format("%.2f MB", modelFile.length() / (1024.0 * 1024.0)));
+                info.put("lastModified", new java.util.Date(modelFile.lastModified()).toString());
+            }
+            
+        } catch (Exception e) {
+            info.put("error", "Failed to get model info: " + e.getMessage());
+        }
+        
+        return info;
+    }
+
+    public String validateModel() {
+        try {
+            File modelFile = new File(config.getModelFilePath());
+            
+            if (!modelFile.exists()) {
+                return "Model file does not exist at: " + config.getModelFilePath();
+            }
+            
+            LSTMNetwork lstm = LSTMNetwork.loadModel(config.getModelFilePath());
+            if (lstm == null) {
+                return "Failed to load model from: " + config.getModelFilePath();
+            }
+            
+            if (lstm.getMin() == null || lstm.getMax() == null) {
+                return "Model loaded but normalization parameters are missing";
+            }
+            
+            if (lstm.getHiddenSize() != config.getHiddenSize()) {
+                return String.format("Model hidden size mismatch. Expected: %d, Found: %d", 
+                    config.getHiddenSize(), lstm.getHiddenSize());
+            }
+            
+            return "Model validation successful";
+            
+        } catch (Exception e) {
+            return "Model validation failed: " + e.getMessage();
+        }
+    }
+
+    private void validateModelInputs(double[] input, String context) {
+        if (input == null) {
+            throw new IllegalArgumentException("Input cannot be null in " + context);
+        }
+        
+        if (input.length != config.getInputSize()) {
+            throw new IllegalArgumentException(
+                String.format("Input size mismatch in %s. Expected: %d, Got: %d", 
+                    context, config.getInputSize(), input.length));
+        }
+        
+        for (int i = 0; i < input.length; i++) {
+            if (!Double.isFinite(input[i])) {
+                throw new IllegalArgumentException(
+                    String.format("Invalid input value at index %d in %s: %f", 
+                        i, context, input[i]));
+            }
+        }
+    }
+
+    private void optimizeMemoryUsage() {
+        // Clear training lists after chart generation
+        epochList.clear();
+        accuracyList.clear();
+        lossList.clear();
+        validationAccuracyList.clear();
+        validationLossList.clear();
+        
+        // Force garbage collection
+        System.gc();
+        
+        // Log memory usage
+        Runtime runtime = Runtime.getRuntime();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Memory usage: " + (usedMemory / 1024 / 1024) + " MB");
+    }
+
+    public Map<String, Object> getCurrentTrainingProgress() {
+        Map<String, Object> progress = new HashMap<>();
+        progress.put("isTraining", isTraining);
+        progress.put("currentMessage", currentTrainingMessage);
+        progress.put("currentEpoch", currentEpoch);
+        progress.put("totalEpochs", config.getEpochs());
+        progress.put("progress", currentProgress);
+        progress.put("estimatedTimeRemaining", calculateEstimatedTime());
+        return progress;
+    }
+
+    private String calculateEstimatedTime() {
+        if (!isTraining || currentEpoch == 0) return "Unknown";
+        
+        // Simple estimation based on current progress
+        long elapsed = System.currentTimeMillis() - trainingStartTime;
+        if (currentProgress > 0) {
+            long estimated = (long)(elapsed * (100.0 / currentProgress));
+            long remaining = estimated - elapsed;
+            return formatTime(remaining);
+        }
+        return "Unknown";
+    }
+
+    private String formatTime(long millis) {
+        if (millis < 0) return "Complete";
+        long seconds = millis / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        
+        if (hours > 0) return String.format("%dh %dm", hours, minutes % 60);
+        if (minutes > 0) return String.format("%dm %ds", minutes, seconds % 60);
+        return String.format("%ds", seconds);
+    }
+
+    // Add training start time tracking
+    private long trainingStartTime;
+
+    private void generateTrainingCharts() {
+        try {
+            String chartDir = config.getOutputDir() + "/charts" + config.getVersion() + "_" + config.getEpochs() + "/accuracy";
+            createDirectory(chartDir);
+            
+            // Generate accuracy and loss charts
+            CustomChartUtils.saveAccuracyChart("Model Accuracy", epochList, accuracyList, validationAccuracyList, 
+                chartDir + "/model_accuracy.png", "Epochs", "Accuracy", 10);
+            CustomChartUtils.saveLossChart("Model Loss", epochList, lossList, validationLossList, 
+                chartDir + "/model_loss.png", "Epochs", "Loss", 10);
+                
+            System.out.println("Training charts saved to: " + chartDir);
+            
+        } catch (Exception e) {
+            System.err.println("Failed to generate charts: " + e.getMessage());
+        }
     }
 }

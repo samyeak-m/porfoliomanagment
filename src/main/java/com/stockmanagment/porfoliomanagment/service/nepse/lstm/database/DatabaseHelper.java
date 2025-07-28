@@ -29,11 +29,14 @@ public class DatabaseHelper {
     private final String password;
     private Map<String, Double> tableNameMap;
 
+    private static final int MAX_POOL_SIZE = 10;
+    private static final int MIN_POOL_SIZE = 2;
+
     public DatabaseHelper() {
         Properties properties = PropertyLoader.loadProperties("application.properties");
-        this.url = properties.getProperty("db.url");
-        this.username = properties.getProperty("db.username");
-        this.password = properties.getProperty("db.password");
+        this.url = properties.getProperty("spring.datasource.nepse.jdbc-url");
+        this.username = properties.getProperty("spring.datasource.nepse.username");
+        this.password = properties.getProperty("spring.datasource.nepse.password");
         this.tableNameMap = new HashMap<>();
         try {
             generateTableNameMap();
@@ -43,6 +46,13 @@ public class DatabaseHelper {
     }
 
     public Connection connect() throws SQLException {
+        return DriverManager.getConnection(url, username, password);
+    }
+
+    // Add connection pooling
+    private Connection getPooledConnection() throws SQLException {
+        // Implement connection pooling logic
+        // This is a simplified version - consider using HikariCP in production
         return DriverManager.getConnection(url, username, password);
     }
 
@@ -139,7 +149,7 @@ public class DatabaseHelper {
                     double open = rs.getDouble("open");
 
                     double dateAsDouble = date.getTime();
-                    double normalizedTableName = tableNameMap.get(tableName);
+                    double normalizedTableName = tableNameMap.getOrDefault(tableName, 0.5);
 
                     stockData.add(new double[]{normalizedTableName, close, high, low, open, dateAsDouble});
                 }

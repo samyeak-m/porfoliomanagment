@@ -6,7 +6,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         #metrics { white-space: pre; background: #f5f5f5; padding: 1em; border-radius: 5px; }
-        .chart-container { width: 600px; margin: 20px auto; }
+        .chart-container { 
+            width: 600px; 
+            height: 400px; /* Add explicit height */
+            margin: 20px auto; 
+            position: relative; /* Add positioning */
+        }
+        .chart-container canvas {
+            max-width: 100%;
+            max-height: 100%;
+        }
         #status { 
             padding: 10px; 
             margin: 10px 0; 
@@ -23,6 +32,12 @@
     <button id="trainBtn">Start Training</button>
     <button id="incrementalBtn">Incremental Learning</button>
     <div id="status"></div>
+    <div id="progressContainer" style="display: none;">
+        <div style="background: #f0f0f0; border-radius: 10px; padding: 3px;">
+            <div id="progressBar" style="background: #4CAF50; height: 20px; border-radius: 7px; width: 0%; transition: width 0.3s;"></div>
+        </div>
+        <div id="progressText">0%</div>
+    </div>
     <h2>Training Metrics</h2>
     <div id="metrics"></div>
     <div class="chart-container">
@@ -38,54 +53,28 @@
         const statusDiv = document.getElementById('status');
         const metricsDiv = document.getElementById('metrics');
         let trainingInProgress = false;
-        let metricsInterval = null;
-
-        // Training status messages
-        const trainingMessages = [
-            "Initializing neural network...",
-            "Loading stock data from database...",
-            "Calculating technical indicators (EMA, SMA, RSI, MACD, Bollinger Bands)...",
-            "Preprocessing and normalizing data...",
-            "Splitting data into training/validation/test sets...",
-            "Starting LSTM training with 100 epochs...",
-            "Training epoch 1-20: Learning basic patterns...",
-            "Training epoch 21-40: Adjusting weights and biases...",
-            "Training epoch 41-60: Fine-tuning predictions...",
-            "Training epoch 61-80: Optimizing accuracy...",
-            "Training epoch 81-100: Final optimization...",
-            "Calculating final test accuracy and loss...",
-            "Generating confusion matrix and F1 scores...",
-            "Saving trained model and generating charts...",
-            "Training completed successfully!"
-        ];
-
-        let messageIndex = 0;
-        let messageInterval = null;
+        let progressInterval = null;
 
         trainBtn.onclick = async () => {
             trainingInProgress = true;
             trainBtn.disabled = true;
             incrementalBtn.disabled = true;
-            messageIndex = 0;
             
-            // Start showing training progress
-            showTrainingProgress();
+            // Start real-time progress monitoring
+            startProgressMonitoring();
             
             try {
                 const response = await fetch('/api/lstm/train', { method: 'POST' });
                 if (response.ok) {
-                    // Training completed successfully
-                    stopTrainingProgress();
+                    stopProgressMonitoring();
                     statusDiv.textContent = "Training completed successfully!";
                     statusDiv.className = 'completed';
-                    
-                    // Fetch final metrics
                     await fetchMetrics();
                 } else {
                     throw new Error('Training failed');
                 }
             } catch (error) {
-                stopTrainingProgress();
+                stopProgressMonitoring();
                 statusDiv.textContent = "Training failed: " + error.message;
                 statusDiv.className = 'error';
             } finally {
@@ -95,6 +84,64 @@
             }
         };
 
+        function startProgressMonitoring() {
+            statusDiv.className = 'training';
+            document.getElementById('progressContainer').style.display = 'block';
+            
+            // Poll for progress every 2 seconds
+            progressInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/lstm/training-progress');
+                    if (response.ok) {
+                        const progress = await response.json();
+                        updateProgressDisplay(progress);
+                        
+                        // Stop polling when training is complete
+                        if (!progress.isTraining && progress.progress >= 100) {
+                            stopProgressMonitoring();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching progress:', error);
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+
+        function updateProgressDisplay(progress) {
+            // Update status message
+            statusDiv.textContent = progress.currentMessage;
+            
+            // Update progress bar
+            const progressPercent = Math.min(progress.progress, 100);
+            document.getElementById('progressBar').style.width = progressPercent + '%';
+            
+            // Update progress text with detailed info
+            let progressText = Math.round(progressPercent) + '%';
+            if (progress.currentEpoch > 0) {
+                progressText += ` (Epoch ${progress.currentEpoch}/${progress.totalEpochs})`;
+            }
+            if (progress.estimatedTimeRemaining && progress.estimatedTimeRemaining !== 'Unknown') {
+                progressText += ` - ETA: ${progress.estimatedTimeRemaining}`;
+            }
+            
+            document.getElementById('progressText').textContent = progressText;
+            
+            // Debug log
+            console.log('Training Progress:', progress);
+        }
+
+        function stopProgressMonitoring() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            
+            // Final progress update
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressText').textContent = '100%';
+        }
+
+        // Incremental learning with real-time updates
         incrementalBtn.onclick = async () => {
             statusDiv.textContent = "Starting incremental learning...";
             statusDiv.className = 'training';
@@ -104,8 +151,6 @@
                 await fetch('/api/lstm/incremental-train', { method: 'POST' });
                 statusDiv.textContent = "Incremental learning completed!";
                 statusDiv.className = 'completed';
-                
-                // Fetch updated metrics
                 await fetchMetrics();
             } catch (error) {
                 statusDiv.textContent = "Incremental learning failed: " + error.message;
@@ -114,32 +159,6 @@
                 incrementalBtn.disabled = false;
             }
         };
-
-        function showTrainingProgress() {
-            statusDiv.className = 'training';
-            
-            // Show immediate message
-            statusDiv.textContent = trainingMessages[messageIndex];
-            messageIndex++;
-            
-            // Update message every 8 seconds
-            messageInterval = setInterval(() => {
-                if (messageIndex < trainingMessages.length - 1 && trainingInProgress) {
-                    statusDiv.textContent = trainingMessages[messageIndex];
-                    messageIndex++;
-                } else if (trainingInProgress) {
-                    // Keep showing the last progress message
-                    statusDiv.textContent = "Finalizing training process...";
-                }
-            }, 8000); // 8 seconds per message
-        }
-
-        function stopTrainingProgress() {
-            if (messageInterval) {
-                clearInterval(messageInterval);
-                messageInterval = null;
-            }
-        }
 
         async function fetchMetrics() {
             try {
@@ -154,47 +173,93 @@
         }
 
         function updateCharts(metricsText) {
-            // Simple parsing for accuracy/loss per epoch
-            const accData = [];
-            const lossData = [];
-            const valAccData = [];
-            const valLossData = [];
-            const epochs = [];
-            const lines = metricsText.split('\n');
-            lines.forEach(line => {
-                const match = line.match(/Epoch (\d+): Accuracy = ([\d.]+), Loss = ([\d.]+), Validation Accuracy = ([\d.]+), Validation Loss = ([\d.]+)/);
-                if (match) {
-                    epochs.push(Number(match[1]));
-                    accData.push(Number(match[2]));
-                    lossData.push(Number(match[3]));
-                    valAccData.push(Number(match[4]));
-                    valLossData.push(Number(match[5]));
+            try {
+                const accData = [];
+                const lossData = [];
+                const valAccData = [];
+                const valLossData = [];
+                const epochs = [];
+                const lines = metricsText.split('\n');
+                
+                lines.forEach(line => {
+                    // FIXED: Multiple regex patterns to match different log formats
+                    const patterns = [
+                        /Epoch\s+(\d+):\s*Accuracy\s*=\s*([\d.]+),\s*Loss\s*=\s*([\d.]+),\s*Validation\s+Accuracy\s*=\s*([\d.]+),\s*Validation\s+Loss\s*=\s*([\d.]+)/,
+                        /Epoch\s+(\d+):\s*Accuracy\s*=\s*([\d.]+),\s*Loss\s*=\s*([\d.]+),\s*Val_Accuracy\s*=\s*([\d.]+),\s*Val_Loss\s*=\s*([\d.]+)/,
+                        /Epoch\s+(\d+)\s*:\s*Accuracy\s*=\s*([\d.]+),\s*Loss\s*=\s*([\d.]+),\s*Val.*Accuracy\s*=\s*([\d.]+),\s*Val.*Loss\s*=\s*([\d.]+)/
+                    ];
+                    
+                    for (let pattern of patterns) {
+                        const match = line.match(pattern);
+                        if (match) {
+                            epochs.push(Number(match[1]));
+                            accData.push(Number(match[2]));
+                            lossData.push(Number(match[3]));
+                            valAccData.push(Number(match[4]));
+                            valLossData.push(Number(match[5]));
+                            break;
+                        }
+                    }
+                });
+                
+                if (epochs.length > 0) {
+                    console.log(`Updating charts with ${epochs.length} data points`);
+                    drawChart('accuracyChart', 'Accuracy', epochs, accData, valAccData);
+                    drawChart('lossChart', 'Loss', epochs, lossData, valLossData);
+                    console.log(`Charts updated successfully`);
+                } else {
+                    console.log("No chart data found. Sample lines:");
+                    lines.filter(l => l.includes('Epoch')).slice(0, 3).forEach(line => console.log(line));
                 }
-            });
-            
-            if (epochs.length > 0) {
-                drawChart('accuracyChart', 'Accuracy', epochs, accData, valAccData);
-                drawChart('lossChart', 'Loss', epochs, lossData, valLossData);
+            } catch (error) {
+                console.error('Error in updateCharts:', error);
+                console.error('Error stack:', error.stack);
             }
         }
 
         function drawChart(canvasId, label, epochs, trainData, valData) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            if (window[canvasId]) window[canvasId].destroy();
-            window[canvasId] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: epochs,
-                    datasets: [
-                        { label: 'Train ' + label, data: trainData, borderColor: 'green', fill: false },
-                        { label: 'Validation ' + label, data: valData, borderColor: 'red', fill: false }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    scales: { x: { title: { display: true, text: 'Epoch' } } }
+            console.log('Drawing chart for:', canvasId);
+            
+            const canvasElement = document.getElementById(canvasId);
+            if (!canvasElement) {
+                console.error('Canvas element not found:', canvasId);
+                return;
+            }
+            
+            const ctx = canvasElement.getContext('2d');
+            
+            // Enhanced error checking
+            if (window[canvasId]) {
+                console.log('Existing chart found for:', canvasId, typeof window[canvasId]);
+                if (typeof window[canvasId].destroy === 'function') {
+                    console.log('Destroying existing chart');
+                    window[canvasId].destroy();
+                } else {
+                    console.warn('Chart object exists but destroy method not found');
+                    delete window[canvasId];
                 }
-            });
+            }
+            
+            try {
+                // Create new chart
+                window[canvasId] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: epochs,
+                        datasets: [
+                            { label: 'Train ' + label, data: trainData, borderColor: 'green', fill: false },
+                            { label: 'Validation ' + label, data: valData, borderColor: 'red', fill: false }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { x: { title: { display: true, text: 'Epoch' } } }
+                    }
+                });
+                console.log('Chart created successfully for:', canvasId);
+            } catch (error) {
+                console.error('Error creating chart:', error);
+            }
         }
 
         async function fetchTrainingStatus() {
