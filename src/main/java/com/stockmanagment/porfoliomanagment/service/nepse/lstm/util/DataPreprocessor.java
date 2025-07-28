@@ -1,11 +1,10 @@
 package com.stockmanagment.porfoliomanagment.service.nepse.lstm.util;
 
-import org.springframework.stereotype.Service;
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
+
 public class DataPreprocessor {
 
     private static final String NORMALIZATION_FILE_PATH = "normal.txt";
@@ -38,6 +37,13 @@ public class DataPreprocessor {
 
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        for (int i = 0; i < data.length; i++) {
+            for (int j = 1; j < data[i].length; j++) {
+                if (!Double.isFinite(normalizedData[i][j])) {
+                    normalizedData[i][j] = 0.5;
+                }
+            }
         }
         return normalizedData;
     }

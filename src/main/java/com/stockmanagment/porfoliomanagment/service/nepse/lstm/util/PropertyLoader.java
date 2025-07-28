@@ -1,7 +1,5 @@
 package com.stockmanagment.porfoliomanagment.service.nepse.lstm.util;
 
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;

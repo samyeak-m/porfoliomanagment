@@ -1,6 +1,11 @@
 package com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -140,16 +145,28 @@ public class LSTMNetwork implements Serializable {
     }
 
     public double[] forward(double[] input, double[] hiddenState, double[] cellState) {
-
-        for (int i = 0; i< input.length;i++){
+        // Initialize arrays to prevent carrying over previous values
+        this.hiddenState = Arrays.copyOf(hiddenState, hiddenState.length);
+        this.cellState = Arrays.copyOf(cellState, cellState.length);
+        
+        for (int i = 0; i < input.length; i++) {
             if (Double.isNaN(input[i])) {
                 System.err.println("Error: NaN value encountered in input at index: " + i);
+                System.err.println("Input vector: " + Arrays.toString(input));
                 return null;
             }
         }
 
         inputGate = leakyRelu(add(dotProduct(weightsInputGate, input), dotProduct(weightsHiddenInputGate, hiddenState), biasInputGate));
         forgetGate = leakyRelu(add(dotProduct(weightsForgetGate, input), dotProduct(weightsHiddenForgetGate, hiddenState), biasForgetGate));
+        // Clamp forgetGate values
+        for (int i = 0; i < forgetGate.length; i++) {
+            if (Double.isNaN(forgetGate[i]) || Double.isInfinite(forgetGate[i])) {
+                System.err.println("NaN/Inf in forgetGate before clamp at index: " + i);
+                forgetGate[i] = 0.5;
+            }
+            forgetGate[i] = Math.max(1e-7, Math.min(1 - 1e-7, forgetGate[i]));
+        }
         outputGate = leakyRelu(add(dotProduct(weightsOutputGate, input), dotProduct(weightsHiddenOutputGate, hiddenState), biasOutputGate));
         cellGate = leakyRelu(add(dotProduct(weightsCellGate, input), dotProduct(weightsHiddenCellGate, hiddenState), biasCellGate));
 
@@ -176,10 +193,6 @@ public class LSTMNetwork implements Serializable {
         }
 
         for (int i = 0; i < cellState.length; i++) {
-
-            cellState[i] = forgetGate[i] * cellState[i] + inputGate[i] * cellGate[i];
-            hiddenState[i] = outputGate[i] * leakyRelu(cellState[i]);
-
             if (Double.isNaN(forgetGate[i])) {
                 System.err.println("Error: NaN value encountered in forget gate at index: " + i);
                 return null;
@@ -191,24 +204,26 @@ public class LSTMNetwork implements Serializable {
             }
 
             if (Double.isNaN(cellGate[i])) {
-                System.err.println("CellGate value: " + cellGate[i]);
-                System.err.println("Error: NaN value encountered in cell gate at index: " + i+"CellGate value: " + cellGate[i]);
+                System.err.println("Error: NaN value encountered in cell gate at index: " + i);
                 return null;
             }
 
+            // Calculate cell state only ONCE
             cellState[i] = forgetGate[i] * cellState[i] + inputGate[i] * cellGate[i];
 
             if (Double.isNaN(cellState[i])) {
                 System.err.println("Error: NaN value encountered in cell state after update at index: " + i);
                 return null;
             }
+            
             hiddenState[i] = outputGate[i] * leakyRelu(cellState[i]);
         }
 
         double[] output = dotProduct(weightsOutput, hiddenState);
 
-        for (int i = 1; i < denseSize; i++) {
-            output = leakyRelu(dotProduct(weightsOutput, output));
+        // FIXED: Add bias to output
+        for (int i = 0; i < output.length; i++) {
+            output[i] += biasOutput[i];
         }
 
 
@@ -239,52 +254,101 @@ public class LSTMNetwork implements Serializable {
 
         double predictedPrice = output[0];
 
-        double lowerThreshold = lastClose * 0.9;
-        double upperThreshold = lastClose * 1.1;
+        // FIXED: Don't apply constraints here for direction prediction
+        // Just use the raw prediction to determine direction
+        
+        // Calculate percentage change from prediction
+        double priceChange = (predictedPrice - lastClose) / lastClose;
 
-        if (predictedPrice < lowerThreshold) {
-            predictedPrice = lowerThreshold;
-        } else if (predictedPrice > upperThreshold) {
-            predictedPrice = upperThreshold;
-        } else if (predictedPrice == -1) {
-            predictedPrice = lowerThreshold + 0.01;
-        }
-
-        if (predictedPrice > lastClose) {
-            if (predictedPrice <= lastClose * (1 + threshold)) {
-                return 1;
-            }
+        // FIXED: Use smaller threshold for classification
+        double directionThreshold = 0.001; // 0.1% threshold
+        
+        if (priceChange > directionThreshold) {
+            return 1;  // Positive (up)
+        } else if (priceChange < -directionThreshold) {
+            return -1; // Negative (down)
         } else {
-            if (predictedPrice >= lastClose * (1 - threshold)) {
-                return -1;
-            }
+            return 0;  // Neutral
         }
-        return 0;
     }
 
 
     public int[][] computeConfusionMatrix(double[][] inputs, double lastClose, double threshold) {
         int[][] confusionMatrix = new int[2][2];
+        int totalProcessed = 0;
+        int skippedNeutral = 0;
+        
+        System.out.println("Computing confusion matrix with " + inputs.length + " samples");
+        System.out.println("Using threshold: " + threshold);
 
-        for (int i = 0; i < inputs.length; i++) {
-            double predictedDirection = predictDirection(inputs[i], lastClose, threshold);
-            double actualDirection = inputs[i][1] > lastClose ? 1 : -1;
+        for (int i = 0; i < inputs.length - 1; i++) {
+            // FIXED: Use correct input size
+            double[] input = Arrays.copyOf(inputs[i], Math.min(inputs[i].length, 18));
+            
+            double currentPrice = inputs[i][1];
+            double nextPrice = inputs[i + 1][1];
+            
+            // Predict direction using current price
+            double predictedDirection = predictDirection(input, currentPrice, threshold);
+            
+            // Calculate actual direction with SMALLER threshold
+            double priceChange = (nextPrice - currentPrice) / currentPrice;
+            double actualDirection;
+            
+            // FIXED: Use smaller threshold for actual direction
+            if (priceChange > 0.001) { // 0.1% threshold
+                actualDirection = 1;
+            } else if (priceChange < -0.001) { // 0.1% threshold
+                actualDirection = -1;
+            } else {
+                actualDirection = 0; // Neutral
+            }
+            
+            // FIXED: Don't skip neutral cases completely, just count them differently
+            if (actualDirection == 0) {
+                skippedNeutral++;
+                continue;
+            }
+
+            totalProcessed++;
+            
+            // Debug first few predictions
+            if (i < 5) {
+                System.out.printf("Sample %d: Current=%.2f, Next=%.2f, Change=%.4f%%, Predicted=%d, Actual=%d%n", 
+                    i, currentPrice, nextPrice, priceChange * 100, (int)predictedDirection, (int)actualDirection);
+            }
 
             if (predictedDirection == 1 && actualDirection == 1) {
-                confusionMatrix[0][0]++;
+                confusionMatrix[0][0]++; // TP
             } else if (predictedDirection == -1 && actualDirection == -1) {
-                confusionMatrix[1][1]++;
+                confusionMatrix[1][1]++; // TN
             } else if (predictedDirection == 1 && actualDirection == -1) {
-                confusionMatrix[0][1]++;
+                confusionMatrix[0][1]++; // FP
             } else if (predictedDirection == -1 && actualDirection == 1) {
-                confusionMatrix[1][0]++;
+                confusionMatrix[1][0]++; // FN
             }
         }
+
+        System.out.println("Total processed: " + totalProcessed);
+        System.out.println("Skipped neutral: " + skippedNeutral);
+        System.out.println("TP: " + confusionMatrix[0][0] + ", FN: " + confusionMatrix[1][0]);
+        System.out.println("FP: " + confusionMatrix[0][1] + ", TN: " + confusionMatrix[1][1]);
 
         return confusionMatrix;
     }
 
     public void backpropagate(double[] input, double[] target, double learningRate) {
+        // Store current states before forward pass
+        double[] savedHiddenState = Arrays.copyOf(this.hiddenState, this.hiddenState.length);
+        double[] savedCellState = Arrays.copyOf(this.cellState, this.cellState.length);
+        
+        double[] output = forward(input, savedHiddenState, savedCellState);
+        
+        if (output == null) {
+            System.err.println("Output is null");
+            return;
+        }
+        
         dHiddenState = new double[hiddenSize];
         dCellState = new double[hiddenSize];
         dInputGate = new double[hiddenSize];
@@ -294,7 +358,6 @@ public class LSTMNetwork implements Serializable {
         dOutput = new double[outputSize];
         double[] hiddenState = new double[hiddenSize];
         double[] cellState = new double[hiddenSize];
-        double[] output = forward(input, hiddenState, cellState);
 
         double[] error = new double[target.length];
         for (int i = 0; i < target.length; i++) {

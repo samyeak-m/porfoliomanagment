@@ -1,14 +1,25 @@
 package com.stockmanagment.porfoliomanagment.service.nepse.lstm.database;
 
-import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.PropertyLoader;
-import org.springframework.stereotype.Service;
-
+import java.sql.Connection;
 import java.sql.Date;
-import java.sql.*;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.springframework.stereotype.Service;
+
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.PropertyLoader;
 
 @Service
 public class DatabaseHelper {
@@ -20,9 +31,9 @@ public class DatabaseHelper {
 
     public DatabaseHelper() {
         Properties properties = PropertyLoader.loadProperties("application.properties");
-        this.url = properties.getProperty("spring.datasource.nepse.jdbc-url");
-        this.username = properties.getProperty("spring.datasource.nepse.username");
-        this.password = properties.getProperty("spring.datasource.nepse.password");
+        this.url = properties.getProperty("db.url");
+        this.username = properties.getProperty("db.username");
+        this.password = properties.getProperty("db.password");
         this.tableNameMap = new HashMap<>();
         try {
             generateTableNameMap();
@@ -123,7 +134,15 @@ public class DatabaseHelper {
         try (Connection conn = connect();
              Statement stmt = conn.createStatement()) {
             stmt.executeUpdate(createTableSQL);
-            System.out.println("Table Created");
+            
+            // Add missing column if table exists but column doesn't
+            try {
+                stmt.executeUpdate("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS stock_symbol VARCHAR(10) NOT NULL");
+            } catch (SQLException e) {
+                // Column already exists, ignore
+            }
+            
+            System.out.println("Table Created/Updated");
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error creating predictions table", e);
             throw e;
