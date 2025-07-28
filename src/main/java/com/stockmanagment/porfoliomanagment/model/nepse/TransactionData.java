@@ -1,7 +1,12 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "transaction_data")
@@ -11,7 +16,7 @@ public class TransactionData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private LocalDateTime timestamp; // Changed to LocalDateTime
+    private LocalDateTime timestamp;
     private String symbol;
 
     

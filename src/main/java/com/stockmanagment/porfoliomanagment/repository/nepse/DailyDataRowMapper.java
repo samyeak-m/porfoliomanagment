@@ -1,12 +1,11 @@
 package com.stockmanagment.porfoliomanagment.repository.nepse;
 
-import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
-import org.springframework.jdbc.core.RowMapper;
-
-import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
+
+import org.springframework.jdbc.core.RowMapper;
+
+import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 
 public class DailyDataRowMapper implements RowMapper<DailyData> {
 
@@ -20,9 +19,8 @@ public class DailyDataRowMapper implements RowMapper<DailyData> {
         dailyData.setClose(Double.valueOf(rs.getDouble("close")));
 
         try {
-            dailyData.setSymbol(rs.getString("symbol")); // Only for `daily_data` table
+            dailyData.setSymbol(rs.getString("symbol"));
         } catch (SQLException ignored) {
-            // Ignore symbol if not present (dynamic tables)
         }
         return dailyData;
     }

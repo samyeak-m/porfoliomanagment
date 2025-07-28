@@ -1,7 +1,13 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "live_data", uniqueConstraints = {
@@ -13,7 +19,7 @@ public class LiveData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    private LocalDate date; // Changed to LocalDate
+    private LocalDate date;
     private String symbol;
 
     

@@ -1,17 +1,23 @@
 package com.stockmanagment.porfoliomanagment.service.nepse;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.stockmanagment.porfoliomanagment.model.nepse.VarData;
 import com.stockmanagment.porfoliomanagment.model.nepse.VarOfAllData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.VarDataRepository;
 import com.stockmanagment.porfoliomanagment.repository.nepse.VarOfAllDataRepository;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class VarCalculationService {
@@ -35,11 +41,9 @@ public class VarCalculationService {
 
     @PostConstruct
     public void initialize() {
-        Map<String, Double> frontendInvestmentAmounts = new HashMap<>(); // Initialize with actual data if available
-        Map<String, Double> stockInvestmentMap = getStockInvestmentAmounts(frontendInvestmentAmounts); // Pass the parameter
-        // Retrieve stocks and their investment amounts
+        Map<String, Double> frontendInvestmentAmounts = new HashMap<>();
+        Map<String, Double> stockInvestmentMap = getStockInvestmentAmounts(frontendInvestmentAmounts);
 
-            // Filter stocks where (investment amount / stock price) <= (stock price * 30)
             List<String> eligibleStocks = stockInvestmentMap.entrySet().stream()
                     .filter(entry -> {
                         String stockSymbol = entry.getKey();
@@ -214,7 +218,6 @@ public class VarCalculationService {
         return filteredStockInvestmentMap;
     }
 
-    // New method to get initial stock price
     public double getInitialStockPrice(String stockSymbol) {
         List<Double> closePrices = getClosePrices(stockSymbol);
         if (closePrices.isEmpty()) {
@@ -246,10 +249,10 @@ public class VarCalculationService {
 
     public Map<String, Object> calculateMultipleVaRBasedOnInvestmentCriteria(int daysOfInvestment, double defaultConfidenceLevel) {
         Map<String, Object> results = new HashMap<>();
-        List<String> eligibleStocks = getStocksBasedOnInvestmentCriteria();  // Get stocks that meet the investment criteria
+        List<String> eligibleStocks = getStocksBasedOnInvestmentCriteria();
 
         for (String stockSymbol : eligibleStocks) {
-            double confidenceLevel = calculateDynamicConfidenceLevel(stockSymbol); // Calculate dynamic confidence level
+            double confidenceLevel = calculateDynamicConfidenceLevel(stockSymbol);
             double var = calculateVaR(stockSymbol, daysOfInvestment, confidenceLevel);
             double initialPrice = getInitialStockPrice(stockSymbol);
 

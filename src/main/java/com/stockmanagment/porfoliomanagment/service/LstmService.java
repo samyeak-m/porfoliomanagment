@@ -38,17 +38,14 @@ public class LstmService {
     private double[] min;
     private double[] max;
     
-    // ADD: Class-level LSTM network field
     private LSTMNetwork lstm;
 
-    // Lists to track training progress
     private final List<Integer> epochList = new ArrayList<>();
     private final List<Double> accuracyList = new ArrayList<>();
     private final List<Double> lossList = new ArrayList<>();
     private final List<Double> validationAccuracyList = new ArrayList<>();
     private final List<Double> validationLossList = new ArrayList<>();
 
-    // Add these fields to track current progress
     private volatile String currentTrainingMessage = "";
     private volatile int currentEpoch = 0;
     private volatile double currentProgress = 0.0;
@@ -74,7 +71,6 @@ public class LstmService {
             currentTrainingMessage = "Connecting to database...";
             currentProgress = 10.0;
             
-            // FIXED: Use class field instead of local variable
             lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             
             if (lstm == null) {
@@ -114,36 +110,29 @@ public class LstmService {
                 currentTrainingMessage = "Splitting data - Train: " + trainData.length + ", Test: " + testData.length;
                 currentProgress = 60.0;
                 
-                // FIXED: Create new LSTM network using class field
                 currentTrainingMessage = "Creating new LSTM network...";
                 lstm = new LSTMNetwork(config.getInputSize(), config.getHiddenSize(), 
                                      config.getOutputSize(), config.getDenseSize(), min, max);
                 
                 currentTrainingMessage = "Starting LSTM training with " + config.getEpochs() + " epochs...";
                 
-                // FIXED: Pass class field to trainModel
                 double[] averages = trainModel(lstm, trainData, testData, config.getEpochs(), config.getTrainingRate(), min, max);
                 
                 currentTrainingMessage = "Training completed. Saving model...";
                 currentProgress = 95.0;
                 
-                // Save the trained model
                 lstm.saveModel(config.getModelFilePath());
                 
-                // Generate confusion matrix and log results
                 int[][] confusionMatrix = lstm.computeConfusionMatrix(testData, testData[testData.length-1][1], config.getThreshold());
                 double[][] classMetrics = printConfusionMatrix(confusionMatrix);
                 
-                // Log training results
                 logFile(averages[0], averages[1], averages[0], averages[1], confusionMatrix,
-                       classMetrics[1][0], classMetrics[1][1], classMetrics[1][2], // Negative class
-                       classMetrics[0][0], classMetrics[0][1], classMetrics[0][2], // Positive class  
+                       classMetrics[1][0], classMetrics[1][1], classMetrics[1][2],
+                       classMetrics[0][0], classMetrics[0][1], classMetrics[0][2],
                        trainData, testData, testData);
                 
-                // Generate charts
                 generateTrainingCharts();
                 
-                // Save training completion date
                 saveLastTrainingDate();
                 
                 System.out.println("Training completed successfully!");
@@ -167,12 +156,11 @@ public class LstmService {
         }
     }
 
-    // Add method to check if incremental learning is needed
     private boolean shouldPerformIncrementalLearning() {
         try {
             File dateFile = new File(config.getLastTrainingDateFile());
             if (!dateFile.exists()) {
-                return true; // First time training
+                return true;
             }
             
             try (BufferedReader reader = new BufferedReader(new FileReader(dateFile))) {
@@ -187,11 +175,10 @@ public class LstmService {
             }
         } catch (Exception e) {
             System.err.println("Error checking last training date: " + e.getMessage());
-            return true; // Default to retraining on error
+            return true;
         }
     }
 
-    // Add method to save training date
     private void saveLastTrainingDate() {
         try {
             createDirectory(config.getOutputDir());
@@ -203,7 +190,6 @@ public class LstmService {
         }
     }
 
-    // Add incremental learning method
     public void incrementalLearning() {
         try {
             if (!shouldPerformIncrementalLearning()) {
@@ -222,7 +208,6 @@ public class LstmService {
             
             System.out.println("Starting incremental learning...");
             
-            // Get new data since last training
             List<String> tableNames = dbHelper.getAllStockTableNames();
             List<double[]> newStockData = getNewDataSinceLastTraining(dbHelper, tableNames);
             
@@ -233,21 +218,17 @@ public class LstmService {
             
             System.out.println("Found " + newStockData.size() + " new data points for incremental learning");
             
-            // Prepare new data
             double[][] newStockDataArray = newStockData.toArray(new double[0][]);
             double[][] technicalIndicators = TechnicalIndicators.calculate(newStockDataArray, 16, 3);
             double[][] extendedData = DataPreprocessor.addFeatures(newStockDataArray, technicalIndicators);
             
-            // Use existing min/max for normalization
             min = lstm.getMin();
             max = lstm.getMax();
             
             double[][] normalizedNewData = DataPreprocessor.normalize(extendedData, min, max);
             
-            // Perform incremental training
             performIncrementalTraining(lstm, normalizedNewData);
             
-            // Save updated model
             lstm.saveModel(config.getModelFilePath());
             saveLastTrainingDate();
             
@@ -258,7 +239,6 @@ public class LstmService {
         }
     }
 
-    // Add method to get new data since last training
     private List<double[]> getNewDataSinceLastTraining(DatabaseHelper dbHelper, List<String> tableNames) throws SQLException {
         List<double[]> newData = new ArrayList<>();
         
@@ -273,7 +253,6 @@ public class LstmService {
                 }
             }
             
-            // Get data after last training date for each stock
             for (String tableName : tableNames) {
                 List<double[]> stockData = dbHelper.loadStockDataAfterDate(tableName, lastTrainingDate);
                 newData.addAll(stockData);
@@ -286,20 +265,16 @@ public class LstmService {
         return newData;
     }
 
-    // Add method to perform incremental training
     private void performIncrementalTraining(LSTMNetwork lstm, double[][] newData) {
         System.out.println("Performing incremental training on " + newData.length + " new samples");
         
-        // Use lower learning rate for incremental learning
-        double incrementalLearningRate = config.getTrainingRate() * 0.1; // 10% of original learning rate
-        int incrementalEpochs = 5; // Fewer epochs for incremental learning
-        
+        double incrementalLearningRate = config.getTrainingRate() * 0.1;
+        int incrementalEpochs = 5;
         LSTMTrainer trainer = new LSTMTrainer(lstm, incrementalLearningRate);
         
         for (int epoch = 0; epoch < incrementalEpochs; epoch++) {
             System.out.println("Incremental epoch " + (epoch + 1) + "/" + incrementalEpochs);
             
-            // Shuffle data for each epoch
             List<double[]> dataList = Arrays.asList(newData);
             Collections.shuffle(dataList);
             double[][] shuffledData = dataList.toArray(new double[0][]);
@@ -311,23 +286,19 @@ public class LstmService {
                 double[] input = Arrays.copyOf(data, config.getInputSize());
                 double[] target = new double[]{data[data.length - 1]};
                 
-                // Forward pass
                 double[] output = lstm.forward(input, hiddenState, cellState);
                 if (output == null) {
                     continue;
                 }
                 
-                // Backward pass with lower learning rate
                 lstm.backpropagate(input, target, incrementalLearningRate);
             }
             
-            // Calculate and log incremental training metrics
             double accuracy = calculateIncrementalAccuracy(lstm, shuffledData);
             System.out.println("Incremental Epoch " + epoch + " Accuracy: " + String.format("%.4f", accuracy));
         }
     }
 
-    // Add method to calculate incremental accuracy
     private double calculateIncrementalAccuracy(LSTMNetwork lstm, double[][] data) {
         double totalAccuracy = 0;
         int validSamples = 0;
@@ -353,42 +324,36 @@ public class LstmService {
     }
 
     private double[][] printConfusionMatrix(int[][] matrix) {
-        int tp = matrix[0][0]; // True Positives
-        int fn = matrix[1][0]; // False Negatives
-        int fp = matrix[0][1]; // False Positives
-        int tn = matrix[1][1]; // True Negatives
+        int tp = matrix[0][0];
+        int fn = matrix[1][0];
+        int fp = matrix[0][1];
+        int tn = matrix[1][1];
 
-        // Positive Class Metrics
         double precisionPositive = (tp + fp) > 0 ? (double) tp / (tp + fp) : 0;
         double recallPositive = (tp + fn) > 0 ? (double) tp / (tp + fn) : 0;
         double f1ScorePositive = (precisionPositive + recallPositive) > 0 ? 2 * (precisionPositive * recallPositive) / (precisionPositive + recallPositive) : 0;
 
-        // Negative Class Metrics
         double precisionNegative = (tn + fn) > 0 ? (double) tn / (tn + fn) : 0;
         double recallNegative = (tn + fp) > 0 ? (double) tn / (tn + fp) : 0;
         double f1ScoreNegative = (precisionNegative + recallNegative) > 0 ? 2 * (precisionNegative * recallNegative) / (precisionNegative + recallNegative) : 0;
 
-        // Print Confusion Matrix
         System.out.println("Confusion Matrix:");
         System.out.println("TP: " + tp + ", FN: " + fn);
         System.out.println("FP: " + fp + ", TN: " + tn);
 
-        // Print Positive Class Metrics
         System.out.println("Positive Class:");
         System.out.println("Precision: " + String.format("%.4f", precisionPositive));
         System.out.println("Recall: " + String.format("%.4f", recallPositive));
         System.out.println("F1 Score: " + String.format("%.4f", f1ScorePositive));
 
-        // Print Negative Class Metrics
         System.out.println("Negative Class:");
         System.out.println("Precision: " + String.format("%.4f", precisionNegative));
         System.out.println("Recall: " + String.format("%.4f", recallNegative));
         System.out.println("F1 Score: " + String.format("%.4f", f1ScoreNegative));
 
-        // Return the results as a 2D array for both classes (positive and negative)
         return new double[][]{
-                {precisionPositive, recallPositive, f1ScorePositive}, // Positive class
-                {precisionNegative, recallNegative, f1ScoreNegative}  // Negative class
+                {precisionPositive, recallPositive, f1ScorePositive},
+                {precisionNegative, recallNegative, f1ScoreNegative}
         };
     }
 
@@ -401,7 +366,6 @@ public class LstmService {
             currentEpoch = epoch + 1;
             currentTrainingMessage = "Training epoch " + (epoch + 1) + "/" + epochs + " - Learning patterns...";
             
-            // Calculate progress: 60% to 95% during training
             currentProgress = 60.0 + (35.0 * (epoch + 1) / epochs);
             
             long startTime = System.currentTimeMillis();
@@ -421,7 +385,6 @@ public class LstmService {
                     double[] input = Arrays.copyOf(data, config.getInputSize());
                     double[] target = new double[]{data[data.length - 1]};
                     
-                    // CORRECT ORDER: Forward first, then backprop
                     double[] output = lstm.forward(input, hiddenState, cellState);
                     if (output == null) {
                         LOGGER.severe("NaN value encountered during forward pass. Stopping training.");
@@ -456,13 +419,11 @@ public class LstmService {
             totalAccuracy += accuracy;
             totalLoss += epochLoss;
             
-            // Update message with current metrics
             currentTrainingMessage = String.format(
                 "Epoch %d/%d - Acc: %.3f, Loss: %.3f, Val_Acc: %.3f, Val_Loss: %.3f", 
                 epoch + 1, epochs, accuracy, epochLoss, validationAccuracy, validationLoss
             );
 
-            // Add sleep to make progress visible (optional)
             try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
         
@@ -489,7 +450,6 @@ public class LstmService {
     
     LOGGER.log(Level.INFO, progress);
     
-    // Log to file for debugging
     try (FileWriter fw = new FileWriter(config.getOutputDir() + "/training_log.txt", true)) {
         fw.write(progress + "\n");
     } catch (IOException e) {
@@ -515,14 +475,12 @@ public class LstmService {
             double actual = testData[i + 1][1];
             double currentClosePrice = testData[i][1];
 
-            // Apply consistent constraints
             prediction = applyPredictionConstraints(prediction, currentClosePrice);
 
             double accuracy = calculatePredictionAccuracy(prediction, actual, currentClosePrice);
             totalAccuracy += accuracy;
 
-            // In testModel, add debug output
-            if (i < 5) { // Debug first 5 predictions
+            if (i < 5) {
                 System.out.printf("Raw prediction: %.4f, Last close: %.4f, After constraints: %.4f, Actual: %.4f%n", 
                     output[0], currentClosePrice, prediction, actual);
             }
@@ -531,12 +489,10 @@ public class LstmService {
     }
 
     private double applyPredictionConstraints(double prediction, double lastClosePrice) {
-        // More realistic daily change limits (5% instead of 8%)
-        double maxDailyChange = 0.05; // 5% max daily change
+        double maxDailyChange = 0.05;
         double minPrice = lastClosePrice * (1 - maxDailyChange);
         double maxPrice = lastClosePrice * (1 + maxDailyChange);
 
-        // Apply realistic constraints
         if (prediction < minPrice) {
             prediction = minPrice;
         } else if (prediction > maxPrice) {
@@ -547,7 +503,7 @@ public class LstmService {
     }
 
     private double calculatePredictionAccuracy(double prediction, double actual, double currentClosePrice) {
-        double maxChange = 0.05 * currentClosePrice; // Match the constraint limit
+        double maxChange = 0.05 * currentClosePrice;
         double diff = Math.abs(prediction - actual);
 
         if (diff > maxChange) {
@@ -560,7 +516,7 @@ public class LstmService {
 
     private double calculateLoss(LSTMNetwork lstm, double[][] data) {
         double totalLoss = 0;
-        double maxChange = 0.05; // Match the constraint limit
+        double maxChange = 0.05;
 
         for (int i = 0; i < data.length - 1; i++) {
             double[] input = Arrays.copyOf(data[i], config.getInputSize());
@@ -575,7 +531,6 @@ public class LstmService {
             
             double prediction = output[0];
 
-            // Apply the same constraints as in applyPredictionConstraints
             prediction = applyPredictionConstraints(prediction, lastClosePrice);
 
             double actual = data[i + 1][1];
@@ -601,7 +556,6 @@ public class LstmService {
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFileName))) {
         
-            // Model Configuration
             writer.write("=== MODEL CONFIGURATION ===\n");
             writer.write("Version: " + config.getVersion() + "\n");
             writer.write("Hidden Size: " + config.getHiddenSize() + "\n");
@@ -615,7 +569,6 @@ public class LstmService {
             writer.write("Interval: " + config.getInterval() + "\n");
             writer.write("\n");
             
-            // Dataset Information
             writer.write("=== DATASET INFORMATION ===\n");
             writer.write("Training data size: " + trainData.length + "\n");
             writer.write("Validation data size: " + validationData.length + "\n");
@@ -628,7 +581,6 @@ public class LstmService {
                     (finalTestData.length / (double)(trainData.length + validationData.length + finalTestData.length)) * 100) + "\n");
             writer.write("\n");
 
-            // Model Performance
             writer.write("=== MODEL PERFORMANCE ===\n");
             writer.write("Final Test Accuracy: " + String.format("%.4f", finalTestAccuracy) + "\n");
             writer.write("Final Test Loss: " + String.format("%.4f", finalTestLoss) + "\n");
@@ -636,7 +588,6 @@ public class LstmService {
             writer.write("Overall Average Training Loss: " + String.format("%.4f", averageLoss) + "\n");
             writer.write("\n");
 
-            // Confusion Matrix
             int tp = confusionMatrix[0][0];
             int fn = confusionMatrix[1][0];
             int fp = confusionMatrix[0][1];
@@ -658,7 +609,6 @@ public class LstmService {
             writer.write("       Neg " + String.format("%3d", fp) + "    " + String.format("%3d", tn) + "\n");
             writer.write("\n");
 
-            // Class Metrics
             writer.write("=== POSITIVE CLASS METRICS ===\n");
             writer.write("Precision: " + String.format("%.4f", precisionPositive) + " (" + tp + "/" + (tp + fp) + ")\n");
             writer.write("Recall (Sensitivity): " + String.format("%.4f", recallPositive) + " (" + tp + "/" + (tp + fn) + ")\n");
@@ -671,7 +621,6 @@ public class LstmService {
             writer.write("F1 Score: " + String.format("%.4f", f1ScoreNegative) + "\n");
             writer.write("\n");
 
-            // Overall Metrics
             double accuracy = (double)(tp + tn) / total;
             double errorRate = (double)(fp + fn) / total;
             
@@ -680,7 +629,6 @@ public class LstmService {
             writer.write("Overall Error Rate: " + String.format("%.4f", errorRate) + " (" + (fp + fn) + "/" + total + ")\n");
             writer.write("\n");
 
-            // Technical Indicators Summary
             writer.write("=== TECHNICAL INDICATORS USED ===\n");
             writer.write("1. EMA (Exponential Moving Average) - Period: 16\n");
             writer.write("2. SMA (Simple Moving Average) - Period: 20\n");
@@ -691,7 +639,6 @@ public class LstmService {
             writer.write("7. Stochastic Oscillator - Period: 14\n");
             writer.write("\n");
 
-            // Sample Technical Indicators Output
             writer.write("=== TECHNICAL INDICATORS CALCULATION DETAILS ===\n");
             writer.write("Calculation Method: Dynamic from actual training data\n");
             writer.write("Data Source: First " + Math.min(5, trainData.length) + " rows of training dataset\n");
@@ -703,40 +650,36 @@ public class LstmService {
 
             if (trainData.length > 0) {
                 try {
-                    // Get sample of original stock data for indicator calculation
                     int sampleRows = Math.min(5, trainData.length);
                     
-                    // Create sample data array with proper structure
                     double[][] sampleData = new double[sampleRows][6];
                     for (int i = 0; i < sampleRows; i++) {
-                        sampleData[i][0] = trainData[i][0]; // table identifier
-                        sampleData[i][1] = denormalizeValue(trainData[i][1], min[1], max[1]); // close price
-                        sampleData[i][2] = denormalizeValue(trainData[i][2], min[2], max[2]); // high price
-                        sampleData[i][3] = denormalizeValue(trainData[i][3], min[3], max[3]); // low price
-                        sampleData[i][4] = denormalizeValue(trainData[i][4], min[4], max[4]); // open price
-                        sampleData[i][5] = denormalizeValue(trainData[i][5], min[5], max[5]); // date
+                        sampleData[i][0] = trainData[i][0];
+                        sampleData[i][1] = denormalizeValue(trainData[i][1], min[1], max[1]);
+                        sampleData[i][2] = denormalizeValue(trainData[i][2], min[2], max[2]);
+                        sampleData[i][3] = denormalizeValue(trainData[i][3], min[3], max[3]);
+                        sampleData[i][4] = denormalizeValue(trainData[i][4], min[4], max[4]);
+                        sampleData[i][5] = denormalizeValue(trainData[i][5], min[5], max[5]);
                     }
                     
-                    // Calculate technical indicators
                     double[][] indicators = TechnicalIndicators.calculate(sampleData, 16, 3);
                     
-                    // Output calculated indicators
                     for (int i = 0; i < sampleRows; i++) {
                         writer.write(String.format(
                             "Row %d: Close=%.2f, EMA=%.2f, SMA=%.2f, RSI=%.2f, ATR=%.2f, MACD=%.2f, Signal=%.2f, Histogram=%.2f, BB_Upper=%.2f, BB_Lower=%.2f, Stoch_K=%.2f, Stoch_D=%.2f%n",
                             i,
-                            sampleData[i][1],         // Original close price
-                            indicators[i][0],         // EMA
-                            indicators[i][1],         // SMA  
-                            indicators[i][2],         // RSI
-                            indicators[i][3],         // ATR
-                            indicators[i][4],         // MACD
-                            indicators[i][5],         // Signal
-                            indicators[i][6],         // Histogram
-                            indicators[i][8],         // BB_Upper
-                            indicators[i][9],         // BB_Lower
-                            indicators[i][10],        // Stoch_K
-                            indicators[i][11]         // Stoch_D
+                            sampleData[i][1],
+                            indicators[i][0],
+                            indicators[i][1],  
+                            indicators[i][2],
+                            indicators[i][3],
+                            indicators[i][4],
+                            indicators[i][5],
+                            indicators[i][6],
+                            indicators[i][8],
+                            indicators[i][9],
+                            indicators[i][10],
+                            indicators[i][11]
                         ));
                     }
                     
@@ -752,7 +695,6 @@ public class LstmService {
             }
             writer.write("\n");
 
-            // Training Epoch Details
             writer.write("=== TRAINING EPOCH DETAILS ===\n");
             for (int i = 0; i < epochList.size(); i++) {
                 writer.write(String.format("Epoch %3d: Accuracy = %.4f, Loss = %.4f, Val_Accuracy = %.4f, Val_Loss = %.4f\n",
@@ -775,14 +717,10 @@ public class LstmService {
         int trainSize = (int) (data.length * trainSplitRatio);
         double[][] trainData = Arrays.copyOfRange(data, 0, trainSize);
         double[][] testData = Arrays.copyOfRange(data, trainSize, data.length);
-
-        // TEMPORARILY DISABLE BALANCING FOR TESTING
-        // trainData = balanceDataset(trainData);
-        // testData = balanceDataset(testData);
         
         System.out.println("Using original unbalanced data for testing");
         
-        min = DataPreprocessor.calculateMin(data); // Use original data for min/max
+        min = DataPreprocessor.calculateMin(data);
         max = DataPreprocessor.calculateMax(data);
 
         double bufferPercentage = 0.40;
@@ -818,31 +756,27 @@ public class LstmService {
         System.out.println("Original data size: " + data.length);
         
         for (int i = 0; i < data.length - 1; i++) {
-            double currentPrice = data[i][1];  // close price
-            double nextPrice = data[i + 1][1]; // next day's close price
+            double currentPrice = data[i][1];
+            double nextPrice = data[i + 1][1];
             
-            // Calculate percentage change
             double priceChange = (nextPrice - currentPrice) / currentPrice;
             
-            // Use smaller, more realistic thresholds
-            if (priceChange > 0.001) { // Up more than 0.1%
+            if (priceChange > 0.001) {
                 positiveClass.add(data[i]);
-            } else if (priceChange < -0.001) { // Down more than 0.1%
+            } else if (priceChange < -0.001) {
                 negativeClass.add(data[i]);
             }
-            // Skip samples with very small changes (-0.1% to +0.1%)
         }
         
         System.out.println("Positive samples: " + positiveClass.size());
         System.out.println("Negative samples: " + negativeClass.size());
         
-        // Use the smaller class size for both
         int minSize = Math.min(positiveClass.size(), negativeClass.size());
         
         if (minSize < 100) {
             System.err.println("Warning: Small balanced dataset size: " + minSize);
             System.err.println("Using original data without balancing");
-            return data; // Return original data if balancing creates too small dataset
+            return data;
         }
         
         List<double[]> balancedData = new ArrayList<>();
@@ -876,33 +810,24 @@ public class LstmService {
             System.err.println("Full input vector for " + label + ": " + Arrays.toString(data));
         }
     }
-
-    /**
-     * Denormalize a single value from [0,1] range back to original scale
-     */
     private double denormalizeValue(double normalizedValue, double minValue, double maxValue) {
         return normalizedValue * (maxValue - minValue) + minValue;
     }
 
-    /**
-     * Get actual technical indicators from processed training data
-     */
     private double[][] getActualTechnicalIndicators(double[][] normalizedTrainData, int sampleSize) {
         try {
             int samples = Math.min(sampleSize, normalizedTrainData.length);
             double[][] denormalizedData = new double[samples][6];
             
-            // Denormalize the data back to original scale
             for (int i = 0; i < samples; i++) {
-                denormalizedData[i][0] = normalizedTrainData[i][0]; // table identifier (not normalized)
-                denormalizedData[i][1] = denormalizeValue(normalizedTrainData[i][1], min[1], max[1]); // close
-                denormalizedData[i][2] = denormalizeValue(normalizedTrainData[i][2], min[2], max[2]); // high
-                denormalizedData[i][3] = denormalizeValue(normalizedTrainData[i][3], min[3], max[3]); // low
-                denormalizedData[i][4] = denormalizeValue(normalizedTrainData[i][4], min[4], max[4]); // open
-                denormalizedData[i][5] = denormalizeValue(normalizedTrainData[i][5], min[5], max[5]); // date
+                denormalizedData[i][0] = normalizedTrainData[i][0];
+                denormalizedData[i][1] = denormalizeValue(normalizedTrainData[i][1], min[1], max[1]);
+                denormalizedData[i][2] = denormalizeValue(normalizedTrainData[i][2], min[2], max[2]);
+                denormalizedData[i][3] = denormalizeValue(normalizedTrainData[i][3], min[3], max[3]);
+                denormalizedData[i][4] = denormalizeValue(normalizedTrainData[i][4], min[4], max[4]);
+                denormalizedData[i][5] = denormalizeValue(normalizedTrainData[i][5], min[5], max[5]);
             }
             
-            // Calculate fresh technical indicators
             return TechnicalIndicators.calculate(denormalizedData, 16, 3);
             
         } catch (Exception e) {
@@ -911,16 +836,13 @@ public class LstmService {
         }
     }
 
-    // Update your predict method to load the model
     public PredictionResponseDTO predict(String stockSymbol) {
         try {
-            // FIXED: Load the trained model
             lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             if (lstm == null) {
                 throw new RuntimeException("No trained model found. Please train the model first.");
             }
             
-            // Get min/max from the loaded model
             min = lstm.getMin();
             max = lstm.getMax();
             
@@ -928,7 +850,6 @@ public class LstmService {
                 throw new RuntimeException("Model normalization parameters not found. Please retrain the model.");
             }
             
-            // FIXED: Convert to lowercase for database operations
             String normalizedStockSymbol = stockSymbol.toLowerCase();
             
             DatabaseHelper dbHelper = new DatabaseHelper();
@@ -942,7 +863,6 @@ public class LstmService {
             double[][] technicalIndicators = TechnicalIndicators.calculate(stockDataArray, 16, 3);
             double[][] extendedData = DataPreprocessor.addFeatures(stockDataArray, technicalIndicators);
             
-            // Store original last close price BEFORE normalization
             double originalLastClose = extendedData[extendedData.length - 1][1];
             
             extendedData = DataPreprocessor.normalize(extendedData, min, max);
@@ -956,17 +876,15 @@ public class LstmService {
             
             double prediction = output[0];
             
-            // FIXED: Denormalize the prediction back to original scale
             double denormalizedPrediction = prediction * (max[1] - min[1]) + min[1];
             
-            // Use denormalized prediction for constraints
             denormalizedPrediction = applyPredictionConstraints(denormalizedPrediction, originalLastClose);
 
             double pointChange = denormalizedPrediction - originalLastClose;
             double priceChange = (pointChange / originalLastClose) * 100;
 
             PredictionResponseDTO response = new PredictionResponseDTO();
-            response.setStockSymbol(stockSymbol.toUpperCase()); // Display in uppercase
+            response.setStockSymbol(stockSymbol.toUpperCase());
             response.setPrediction(denormalizedPrediction);
             response.setLastClose(originalLastClose);
             response.setPointChange(pointChange);
@@ -1004,7 +922,6 @@ public class LstmService {
                 }
             }
             
-            // Check if model exists
             File modelFile = new File(config.getModelFilePath());
             boolean modelExists = modelFile.exists();
             
@@ -1015,13 +932,11 @@ public class LstmService {
             status.put("retrainThresholdDays", config.getRetrainThresholdDays());
             status.put("currentDate", LocalDate.now().toString());
             
-            // Add model info if it exists
             if (modelExists) {
                 status.put("modelPath", config.getModelFilePath());
                 status.put("modelSize", String.format("%.2f MB", modelFile.length() / (1024.0 * 1024.0)));
             }
             
-            // Add training parameters
             status.put("version", config.getVersion());
             status.put("epochs", config.getEpochs());
             status.put("batchSize", config.getBatchSize());
@@ -1116,17 +1031,14 @@ public class LstmService {
     }
 
     private void optimizeMemoryUsage() {
-        // Clear training lists after chart generation
         epochList.clear();
         accuracyList.clear();
         lossList.clear();
         validationAccuracyList.clear();
         validationLossList.clear();
         
-        // Force garbage collection
         System.gc();
         
-        // Log memory usage
         Runtime runtime = Runtime.getRuntime();
         long usedMemory = runtime.totalMemory() - runtime.freeMemory();
         System.out.println("Memory usage: " + (usedMemory / 1024 / 1024) + " MB");
@@ -1146,7 +1058,6 @@ public class LstmService {
     private String calculateEstimatedTime() {
         if (!isTraining || currentEpoch == 0) return "Unknown";
         
-        // Simple estimation based on current progress
         long elapsed = System.currentTimeMillis() - trainingStartTime;
         if (currentProgress > 0) {
             long estimated = (long)(elapsed * (100.0 / currentProgress));
@@ -1167,7 +1078,6 @@ public class LstmService {
         return String.format("%ds", seconds);
     }
 
-    // Add training start time tracking
     private long trainingStartTime;
 
     private void generateTrainingCharts() {
@@ -1175,7 +1085,6 @@ public class LstmService {
             String chartDir = config.getOutputDir() + "/charts" + config.getVersion() + "_" + config.getEpochs() + "/accuracy";
             createDirectory(chartDir);
             
-            // Generate accuracy and loss charts
             CustomChartUtils.saveAccuracyChart("Model Accuracy", epochList, accuracyList, validationAccuracyList, 
                 chartDir + "/model_accuracy.png", "Epochs", "Accuracy", 10);
             CustomChartUtils.saveLossChart("Model Loss", epochList, lossList, validationLossList, 

@@ -38,13 +38,11 @@ public class DatabaseHelper {
         this.username = properties.getProperty("spring.datasource.nepse.username");
         this.password = properties.getProperty("spring.datasource.nepse.password");
         this.tableNameMap = new HashMap<>();
-        
+
         try {
             generateTableNameMap();
-            LOGGER.log(Level.INFO, "DatabaseHelper initialized successfully with " + tableNameMap.size() + " table mappings");
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error generating table name map during initialization", e);
-            // Don't throw exception here, let methods handle it gracefully
         }
     }
 
@@ -52,31 +50,25 @@ public class DatabaseHelper {
         return DriverManager.getConnection(url, username, password);
     }
 
-    // Add connection pooling
     private Connection getPooledConnection() throws SQLException {
-        // Implement connection pooling logic
-        // This is a simplified version - consider using HikariCP in production
         return DriverManager.getConnection(url, username, password);
     }
 
     private void generateTableNameMap() throws SQLException {
         this.tableNameMap = new HashMap<>();
         List<String> tableNames = getAllStockTableNames();
-        
+
         if (tableNames.isEmpty()) {
             LOGGER.log(Level.WARNING, "No stock tables found in database");
             return;
         }
-        
+
         double step = tableNames.size() > 1 ? 1.0 / (tableNames.size() - 1) : 0.5;
 
         for (int i = 0; i < tableNames.size(); i++) {
             double normalizedValue = tableNames.size() == 1 ? 0.5 : i * step;
             tableNameMap.put(tableNames.get(i), normalizedValue);
-            LOGGER.log(Level.INFO, "Mapped table '" + tableNames.get(i) + "' to normalized value: " + normalizedValue);
         }
-        
-        LOGGER.log(Level.INFO, "Generated tableNameMap with " + tableNames.size() + " entries");
     }
 
     public List<String> getAllStockTableNames() throws SQLException {
@@ -84,8 +76,8 @@ public class DatabaseHelper {
         String query = "SHOW TABLES LIKE 'daily_data_%'";
 
         try (Connection conn = connect();
-             PreparedStatement pstmt = conn.prepareStatement(query);
-             ResultSet rs = pstmt.executeQuery()) {
+                PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
                 // FIXED: Store table names in lowercase
                 String tableName = rs.getString(1).replace("daily_data_", "").toLowerCase();
@@ -101,13 +93,12 @@ public class DatabaseHelper {
     }
 
     private boolean hasValidClosePrice(String tableName) throws SQLException {
-        // FIXED: Convert to lowercase for database operations
         String normalizedTableName = tableName.toLowerCase();
         String query = "SELECT COUNT(*) FROM daily_data_" + normalizedTableName + " WHERE close >= 100";
 
         try (Connection conn = connect();
-             PreparedStatement pstmt = conn.prepareStatement(query);
-             ResultSet rs = pstmt.executeQuery()) {
+                PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt(1) > 0;
             }
@@ -118,17 +109,15 @@ public class DatabaseHelper {
         return false;
     }
 
-
     public List<double[]> loadStockData(String tableName) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
-        
-        // FIXED: Convert to lowercase for database operations
+
         String normalizedTableName = tableName.toLowerCase();
         String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + " ORDER BY date";
 
         try (Connection conn = connect();
-             PreparedStatement pstmt = conn.prepareStatement(query);
-             ResultSet rs = pstmt.executeQuery()) {
+                PreparedStatement pstmt = conn.prepareStatement(query);
+                ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
                 Date date = rs.getDate("date");
                 double close = rs.getDouble("close");
@@ -138,32 +127,31 @@ public class DatabaseHelper {
 
                 double dateAsDouble = date.getTime();
 
-                // FIXED: Use lowercase for map lookup
                 Double normalizedValue = tableNameMap.get(normalizedTableName);
                 double normalizedTableNameValue;
-                
+
                 if (normalizedValue == null) {
-                    LOGGER.log(Level.WARNING, "Table name '" + normalizedTableName + "' not found in tableNameMap. Regenerating map...");
+                    LOGGER.log(Level.WARNING,
+                            "Table name '" + normalizedTableName + "' not found in tableNameMap. Regenerating map...");
                     try {
                         generateTableNameMap();
                         normalizedValue = tableNameMap.get(normalizedTableName);
                         if (normalizedValue == null) {
                             // Still null, use default value based on hash
                             normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
-                            LOGGER.log(Level.WARNING, "Using hash-based normalized value: " + normalizedTableNameValue + " for table: " + normalizedTableName);
                         } else {
                             normalizedTableNameValue = normalizedValue;
                         }
                     } catch (SQLException e) {
-                        // Fallback to hash-based value
                         normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
-                        LOGGER.log(Level.WARNING, "Failed to regenerate map, using hash fallback: " + normalizedTableNameValue + " for table: " + normalizedTableName);
+                        LOGGER.log(Level.WARNING, "Failed to regenerate map, using hash fallback: "
+                                + normalizedTableNameValue + " for table: " + normalizedTableName);
                     }
                 } else {
                     normalizedTableNameValue = normalizedValue;
                 }
 
-                stockData.add(new double[]{normalizedTableNameValue, close, high, low, open, dateAsDouble});
+                stockData.add(new double[] { normalizedTableNameValue, close, high, low, open, dateAsDouble });
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error loading stock data for table " + normalizedTableName, e);
@@ -174,17 +162,16 @@ public class DatabaseHelper {
 
     public List<double[]> loadStockDataAfterDate(String tableName, LocalDate afterDate) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
-        
-        // FIXED: Convert to lowercase for database operations
+
         String normalizedTableName = tableName.toLowerCase();
-        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + 
-                       " WHERE date > ? ORDER BY date";
+        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName +
+                " WHERE date > ? ORDER BY date";
 
         try (Connection conn = connect();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
+
             pstmt.setDate(1, Date.valueOf(afterDate));
-            
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     Date date = rs.getDate("date");
@@ -194,13 +181,13 @@ public class DatabaseHelper {
                     double open = rs.getDouble("open");
 
                     double dateAsDouble = date.getTime();
-                    
-                    // FIXED: Use lowercase for map lookup
+
                     Double normalizedValue = tableNameMap.get(normalizedTableName);
                     double normalizedTableNameValue;
-                    
+
                     if (normalizedValue == null) {
-                        LOGGER.log(Level.WARNING, "Table name '" + normalizedTableName + "' not found in tableNameMap for date query");
+                        LOGGER.log(Level.WARNING,
+                                "Table name '" + normalizedTableName + "' not found in tableNameMap for date query");
                         try {
                             generateTableNameMap();
                             normalizedValue = tableNameMap.get(normalizedTableName);
@@ -216,7 +203,7 @@ public class DatabaseHelper {
                         normalizedTableNameValue = normalizedValue;
                     }
 
-                    stockData.add(new double[]{normalizedTableNameValue, close, high, low, open, dateAsDouble});
+                    stockData.add(new double[] { normalizedTableNameValue, close, high, low, open, dateAsDouble });
                 }
             }
         } catch (SQLException e) {
@@ -238,16 +225,15 @@ public class DatabaseHelper {
                 ")";
 
         try (Connection conn = connect();
-             Statement stmt = conn.createStatement()) {
+                Statement stmt = conn.createStatement()) {
             stmt.executeUpdate(createTableSQL);
-            
-            // Add missing column if table exists but column doesn't
+
             try {
-                stmt.executeUpdate("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS stock_symbol VARCHAR(10) NOT NULL");
+                stmt.executeUpdate(
+                        "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS stock_symbol VARCHAR(10) NOT NULL");
             } catch (SQLException e) {
-                // Column already exists, ignore
             }
-            
+
             System.out.println("Table Created/Updated");
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error creating predictions table", e);
@@ -258,12 +244,13 @@ public class DatabaseHelper {
     public void savePredictions(String stockSymbol, double[] predictions, double[] lastclose) throws SQLException {
         createPredictionsTableIfNotExists();
 
-        System.out.println("prediction : " + Arrays.toString(predictions) + ", Last close : " + Arrays.toString(lastclose) + ", symbol : " + stockSymbol);
+        System.out.println("prediction : " + Arrays.toString(predictions) + ", Last close : "
+                + Arrays.toString(lastclose) + ", symbol : " + stockSymbol);
 
         String query = "INSERT INTO predictions (stock_symbol, prediction, lastclose, point_change, price_change, prediction_date) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = connect();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+                PreparedStatement pstmt = conn.prepareStatement(query)) {
             conn.setAutoCommit(false);
             LocalDate predictionDate = LocalDate.now();
 
@@ -271,7 +258,7 @@ public class DatabaseHelper {
                 double prediction = predictions[i];
                 double close = lastclose[i];
                 double pointChange = prediction - close;
-                double priceChange = (pointChange / close)*100;
+                double priceChange = (pointChange / close) * 100;
 
                 pstmt.setString(1, stockSymbol);
                 pstmt.setDouble(2, prediction);
@@ -294,7 +281,7 @@ public class DatabaseHelper {
     public void debugTableNameMap() {
         System.out.println("=== TABLE NAME MAP DEBUG ===");
         System.out.println("Map size: " + (tableNameMap != null ? tableNameMap.size() : "null"));
-        
+
         if (tableNameMap != null && !tableNameMap.isEmpty()) {
             System.out.println("Map contents:");
             for (Map.Entry<String, Double> entry : tableNameMap.entrySet()) {

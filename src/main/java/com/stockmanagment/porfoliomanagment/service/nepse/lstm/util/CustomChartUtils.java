@@ -22,7 +22,6 @@ public class CustomChartUtils {
         XYSeries accuracySeries = new XYSeries("Training Accuracy");
         XYSeries validationAccuracySeries = new XYSeries("Validation Accuracy");
 
-        // FIXED: Add ALL data points, not just sampled ones
         for (int i = 0; i < epochs.size(); i++) {
             accuracySeries.add((double)epochs.get(i), accuracy.get(i));
             validationAccuracySeries.add((double)epochs.get(i), validationAccuracy.get(i));
@@ -55,7 +54,6 @@ public class CustomChartUtils {
         XYSeries lossSeries = new XYSeries("Training Loss");
         XYSeries validationLossSeries = new XYSeries("Validation Loss");
 
-        // FIXED: Add ALL data points, not just sampled ones
         for (int i = 0; i < epochs.size(); i++) {
             lossSeries.add((double)epochs.get(i), loss.get(i));
             validationLossSeries.add((double)epochs.get(i), validationLoss.get(i));
@@ -91,7 +89,7 @@ public class CustomChartUtils {
                 max = data.get(i);
             }
         }
-        return max; // This returns the same value (0.13) for all intervals
+        return max;
     }
 
     private static void saveChart(JFreeChart chart, String filePath) {

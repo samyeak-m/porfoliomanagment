@@ -1,7 +1,12 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "predictions")
@@ -25,7 +30,7 @@ public class Predictions {
     
     private Double lastClose;
 
-    private LocalDate predictionDate; // Changed to LocalDate
+    private LocalDate predictionDate;
 
     public int getId() {
         return id;

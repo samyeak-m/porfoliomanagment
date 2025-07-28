@@ -6,7 +6,6 @@ public class TechnicalIndicators {
         double[] sma = new double[prices.length];
         for (int i = 0; i < prices.length; i++) {
             if (i < period - 1) {
-                // For early values, use average of available data
                 double sum = 0;
                 for (int j = 0; j <= i; j++) {
                     sum += prices[j];
@@ -27,12 +26,10 @@ public class TechnicalIndicators {
         double[] ema = new double[prices.length];
         double multiplier = 2.0 / (period + 1);
 
-        // FIXED: Better EMA initialization
-        ema[0] = prices[0]; // Start with first price
+        ema[0] = prices[0];
 
         for (int i = 1; i < prices.length; i++) {
             if (i < period) {
-                // FIXED: Use weighted average that gradually transitions to EMA
                 double sum = 0;
                 double weightSum = 0;
                 for (int j = 0; j <= i; j++) {
@@ -42,7 +39,6 @@ public class TechnicalIndicators {
                 }
                 ema[i] = sum / weightSum;
             } else {
-                // Standard EMA calculation
                 ema[i] = ((prices[i] - ema[i - 1]) * multiplier) + ema[i - 1];
             }
         }
@@ -55,7 +51,6 @@ public class TechnicalIndicators {
         double[] gains = new double[prices.length];
         double[] losses = new double[prices.length];
 
-        // Calculate gains and losses
         for (int i = 1; i < prices.length; i++) {
             double change = prices[i] - prices[i - 1];
             if (change > 0) {
@@ -67,7 +62,6 @@ public class TechnicalIndicators {
             }
         }
 
-        // Calculate initial averages
         double averageGain = 0;
         double averageLoss = 0;
         for (int i = 1; i <= period && i < prices.length; i++) {
@@ -77,23 +71,20 @@ public class TechnicalIndicators {
         averageGain /= period;
         averageLoss /= period;
 
-        // Fill early RSI values with 50 (neutral)
         for (int i = 0; i < period && i < prices.length; i++) {
             rsi[i] = 50.0;
         }
 
-        // Calculate RSI for remaining values
         for (int i = period; i < prices.length; i++) {
             if (i > period) {
                 averageGain = ((averageGain * (period - 1)) + gains[i]) / period;
                 averageLoss = ((averageLoss * (period - 1)) + losses[i]) / period;
             }
 
-            // Prevent division by zero and handle edge cases
             if (averageLoss == 0) {
-                rsi[i] = 100; // RSI = 100 when there are no losses
+                rsi[i] = 100;
             } else if (averageGain == 0) {
-                rsi[i] = 0;   // RSI = 0 when there are no gains
+                rsi[i] = 0;
             } else {
                 double rs = averageGain / averageLoss;
                 rsi[i] = 100 - (100 / (1 + rs));
@@ -107,32 +98,26 @@ public class TechnicalIndicators {
         double[] emaLong = calculateEMA(prices, longPeriod);
         double[] macd = new double[prices.length];
         
-        // FIXED: Calculate MACD line with better initialization
         for (int i = 0; i < prices.length; i++) {
             if (i < longPeriod) {
-                // For early values, use price momentum as approximation
                 if (i > 0) {
                     double momentum = (prices[i] - prices[0]) / prices[0];
-                    macd[i] = momentum * prices[i] * 0.01; // Small initial MACD values
+                    macd[i] = momentum * prices[i] * 0.01;
                 } else {
                     macd[i] = 0.0;
                 }
             } else {
-                // Standard MACD calculation
                 macd[i] = emaShort[i] - emaLong[i];
             }
         }
         
-        // Calculate signal line (EMA of MACD)
         double[] signal = calculateEMA(macd, signalPeriod);
         
-        // Calculate histogram
         double[] histogram = new double[prices.length];
         for (int i = 0; i < prices.length; i++) {
             histogram[i] = macd[i] - signal[i];
         }
         
-        // FIXED: Add debugging for first few values
         System.out.println("MACD Debug - First 5 values:");
         for (int i = 0; i < Math.min(5, prices.length); i++) {
             System.out.printf("Price[%d]=%.2f, EMA12=%.2f, EMA26=%.2f, MACD=%.4f, Signal=%.4f, Histogram=%.4f%n",
@@ -147,27 +132,21 @@ public class TechnicalIndicators {
         double[] emaLong = calculateEMA(prices, longPeriod);
         double[] macd = new double[prices.length];
         
-        // Calculate baseline price for reference
         double baselinePrice = prices[0];
         
         for (int i = 0; i < prices.length; i++) {
             if (i < Math.max(shortPeriod, longPeriod)) {
-                // FIXED: Use price momentum for early MACD values
                 double priceChange = prices[i] - baselinePrice;
                 double momentum = priceChange / baselinePrice;
                 
-                // Scale momentum to typical MACD range
-                macd[i] = momentum * baselinePrice * 0.02; // 2% scaling factor
+                macd[i] = momentum * baselinePrice * 0.02;
             } else {
-                // Standard MACD calculation
                 macd[i] = emaShort[i] - emaLong[i];
             }
         }
         
-        // Calculate signal line
         double[] signal = calculateEMA(macd, signalPeriod);
         
-        // Calculate histogram
         double[] histogram = new double[prices.length];
         for (int i = 0; i < prices.length; i++) {
             histogram[i] = macd[i] - signal[i];
@@ -181,12 +160,10 @@ public class TechnicalIndicators {
         double[] upperBand = new double[prices.length];
         double[] lowerBand = new double[prices.length];
 
-        // FIXED: Handle early values
         for (int i = 0; i < prices.length; i++) {
             if (i < period - 1) {
-                // For early values, use price ± small percentage
-                upperBand[i] = prices[i] * 1.02; // 2% above
-                lowerBand[i] = prices[i] * 0.98; // 2% below
+                upperBand[i] = prices[i] * 1.02;
+                lowerBand[i] = prices[i] * 0.98;
             } else {
                 double sum = 0;
                 int actualPeriod = Math.min(period, i + 1);
@@ -205,7 +182,6 @@ public class TechnicalIndicators {
         double[] atr = new double[close.length];
         double[] tr = new double[close.length];
 
-        // First TR value
         tr[0] = high[0] - low[0];
 
         for (int i = 1; i < close.length; i++) {
@@ -215,7 +191,6 @@ public class TechnicalIndicators {
             tr[i] = Math.max(highLow, Math.max(highClose, lowClose));
         }
 
-        // Fill early values with simple average
         for (int i = 0; i < period && i < close.length; i++) {
             double sum = 0;
             for (int j = 0; j <= i; j++) {
@@ -224,7 +199,6 @@ public class TechnicalIndicators {
             atr[i] = sum / (i + 1);
         }
 
-        // Calculate ATR for remaining values
         for (int i = period; i < close.length; i++) {
             atr[i] = ((atr[i - 1] * (period - 1)) + tr[i]) / period;
         }
@@ -236,7 +210,6 @@ public class TechnicalIndicators {
         double[] d = new double[close.length];
 
         for (int i = 0; i < close.length; i++) {
-            // Use available data, not fixed period
             int lookback = Math.min(period, i + 1);
             
             double highestHigh = Double.NEGATIVE_INFINITY;
@@ -255,12 +228,11 @@ public class TechnicalIndicators {
             }
             
             if (highestHigh == lowestLow) {
-                k[i] = 50.0; // Avoid division by zero
+                k[i] = 50.0;
             } else {
                 k[i] = ((close[i] - lowestLow) / (highestHigh - lowestLow)) * 100;
             }
             
-            // Calculate %D (3-period SMA of %K)
             if (i >= 2) {
                 d[i] = (k[i] + k[i-1] + k[i-2]) / 3;
             } else if (i >= 1) {
@@ -283,12 +255,11 @@ public class TechnicalIndicators {
         double[] lows = new double[stockData.length];
 
         for (int i = 0; i < stockData.length; i++) {
-            prices[i] = stockData[i][priceIndex];   // close
-            highs[i] = stockData[i][highIndex];     // high
-            lows[i] = stockData[i][lowIndex];       // low
+            prices[i] = stockData[i][priceIndex];
+            highs[i] = stockData[i][highIndex];
+            lows[i] = stockData[i][lowIndex];
         }
 
-        // Calculate all technical indicators
         double[] ema = calculateEMA(prices, emaPeriod);
         double[] sma = calculateSMA(prices, 20);
         double[] rsi = calculateRSI(prices, rsiPeriod);
@@ -297,27 +268,22 @@ public class TechnicalIndicators {
         double[][] bollingerBands = calculateBollingerBands(prices, 20, 2.0);
         double[][] stochastic = calculateStochasticOscillator(prices, highs, lows, 14);
 
-        // Create extended indicators array with all 12 indicators
         double[][] indicators = new double[stockData.length][12];
 
         for (int i = 0; i < stockData.length; i++) {
-            // Basic indicators
             indicators[i][0] = Double.isFinite(ema[i]) ? ema[i] : prices[i];
             indicators[i][1] = Double.isFinite(sma[i]) ? sma[i] : prices[i];
             indicators[i][2] = Double.isFinite(rsi[i]) ? Math.max(0, Math.min(100, rsi[i])) : 50.0;
             indicators[i][3] = Double.isFinite(atr[i]) ? atr[i] : 0.0;
             
-            // MACD (3 values: macd, signal, histogram)
             indicators[i][4] = Double.isFinite(macd[0][i]) ? macd[0][i] : 0.0;
             indicators[i][5] = Double.isFinite(macd[1][i]) ? macd[1][i] : 0.0;
             indicators[i][6] = Double.isFinite(macd[2][i]) ? macd[2][i] : 0.0;
             
-            // Bollinger Bands (3 values: sma, upper, lower)
             indicators[i][7] = Double.isFinite(bollingerBands[0][i]) ? bollingerBands[0][i] : prices[i];
             indicators[i][8] = Double.isFinite(bollingerBands[1][i]) ? bollingerBands[1][i] : prices[i];
             indicators[i][9] = Double.isFinite(bollingerBands[2][i]) ? bollingerBands[2][i] : prices[i];
             
-            // Stochastic Oscillator (2 values: %K, %D)
             indicators[i][10] = Double.isFinite(stochastic[0][i]) ? Math.max(0, Math.min(100, stochastic[0][i])) : 50.0;
             indicators[i][11] = Double.isFinite(stochastic[1][i]) ? Math.max(0, Math.min(100, stochastic[1][i])) : 50.0;
         }

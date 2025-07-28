@@ -18,13 +18,11 @@ public class LstmConfig {
     private int retrainThresholdDays;
     private String baseDir;
 
-    // Color constants
     public String getResetColor() { return "\u001B[0m"; }
     public String getGreenColor() { return "\u001B[32m"; }
     public String getBlueColor() { return "\u001B[34m"; }
     public String getYellowColor() { return "\u001B[33m"; }
     
-    // Computed properties
     public String getOutputDir() {
         return baseDir + "/output_" + version + "_e" + epochs + "_b" + batchSize + "_h" + hiddenSize;
     }
@@ -37,11 +35,9 @@ public class LstmConfig {
         return getOutputDir() + "/last_training_date.txt";
     }
 
-    // Compatibility aliases
     public int getBatch() { return batchSize; }
     public int getInterval() { return 100; }
 
-    // Standard getters and setters (NO @Value annotations)
     public String getVersion() { return version; }
     public void setVersion(String version) { this.version = version; }
 

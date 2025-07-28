@@ -8,7 +8,6 @@ public class PredictionResponseDTO {
     private double priceChange;
     private String predictionDate;
     
-    // Getters and setters
     public String getStockSymbol() { return stockSymbol; }
     public void setStockSymbol(String stockSymbol) { this.stockSymbol = stockSymbol; }
     

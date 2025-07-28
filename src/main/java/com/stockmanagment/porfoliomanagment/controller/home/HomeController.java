@@ -120,7 +120,7 @@ public class HomeController {
                 model.addAttribute("initialStockPrice", String.format("%.2f", initialStockPrice));
                 model.addAttribute("nextClosePrice", String.format("%.2f", nextClosePrice));
                 model.addAttribute("varPercentage", String.format("%.2f", varPercentage));
-                model.addAttribute("stockSymbol", normalizedStockSymbol); // Use the normalized stock symbol
+                model.addAttribute("stockSymbol", normalizedStockSymbol);
             } catch (RuntimeException e) {
                 model.addAttribute("error", e.getMessage());
             }
@@ -136,7 +136,6 @@ public class HomeController {
                                Model model) {
         try {
             if (symbol != null && !symbol.isEmpty()) {
-                // Handle if both startDate and endDate are provided
                 if (startDate != null && endDate != null) {
                     LocalDate start = LocalDate.parse(startDate);
                     LocalDate end = LocalDate.parse(endDate);
@@ -174,10 +173,8 @@ public class HomeController {
         return "daily/dailydata";
     }
 
-    // Route for multiple stock VaR calculation (investment route)
     @GetMapping("/investment")
     public String investmentPage(Model model) {
-        // Optionally, load default data or setup necessary attributes for the investment page
         return "daily/investment";
     }
 

@@ -30,7 +30,7 @@ public class PredictionController {
     private LstmService lstmService;
     
     @Autowired
-    private LstmConfig config; // Inject config
+    private LstmConfig config;
 
     @PostMapping("/predict")
     public PredictionResponseDTO predict(@RequestBody PredictionRequestDTO request) {
@@ -56,7 +56,6 @@ public class PredictionController {
             File metricsFile = new File(path);
             
             if (!metricsFile.exists()) {
-                // Return JSON for better frontend handling
                 Map<String, Object> response = new HashMap<>();
                 response.put("status", "not_trained");
                 response.put("message", "Model not trained yet");
@@ -66,7 +65,6 @@ public class PredictionController {
                 return ResponseEntity.ok(response);
             }
             
-            // Return file contents as plain text
             String content = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(path)));
             return ResponseEntity.ok()
                     .header("Content-Type", "text/plain")
@@ -119,9 +117,8 @@ public class PredictionController {
             DatabaseHelper dbHelper = new DatabaseHelper();
             List<String> symbols = dbHelper.getAllStockTableNames();
             
-            // FIXED: Convert to uppercase for frontend display
             return symbols.stream()
-                    .map(String::toUpperCase) // Convert to uppercase for display
+                    .map(String::toUpperCase)
                     .sorted()
                     .collect(Collectors.toList());
                     
@@ -142,7 +139,6 @@ public class PredictionController {
 
     private boolean isModelLoaded() {
         try {
-            // Use dynamic path from config
             return new File(config.getModelFilePath()).exists();
         } catch (Exception e) {
             return false;
@@ -154,11 +150,9 @@ public class PredictionController {
         Map<String, Object> status = new HashMap<>();
         
         try {
-            // Check if model file exists
             String modelPath = config.getModelFilePath();
             boolean modelExists = new File(modelPath).exists();
             
-            // Check if metrics file exists
             String metricsPath = config.getOutputDir() + "/confusion.txt";
             boolean metricsExists = new File(metricsPath).exists();
             

@@ -145,7 +145,6 @@ public class LSTMNetwork implements Serializable {
     }
 
     public double[] forward(double[] input, double[] hiddenState, double[] cellState) {
-        // Initialize arrays to prevent carrying over previous values
         this.hiddenState = Arrays.copyOf(hiddenState, hiddenState.length);
         this.cellState = Arrays.copyOf(cellState, cellState.length);
         
@@ -159,7 +158,6 @@ public class LSTMNetwork implements Serializable {
 
         inputGate = leakyRelu(add(dotProduct(weightsInputGate, input), dotProduct(weightsHiddenInputGate, hiddenState), biasInputGate));
         forgetGate = leakyRelu(add(dotProduct(weightsForgetGate, input), dotProduct(weightsHiddenForgetGate, hiddenState), biasForgetGate));
-        // Clamp forgetGate values
         for (int i = 0; i < forgetGate.length; i++) {
             if (Double.isNaN(forgetGate[i]) || Double.isInfinite(forgetGate[i])) {
                 System.err.println("NaN/Inf in forgetGate before clamp at index: " + i);
@@ -208,7 +206,6 @@ public class LSTMNetwork implements Serializable {
                 return null;
             }
 
-            // Calculate cell state only ONCE
             cellState[i] = forgetGate[i] * cellState[i] + inputGate[i] * cellGate[i];
 
             if (Double.isNaN(cellState[i])) {
@@ -221,7 +218,6 @@ public class LSTMNetwork implements Serializable {
 
         double[] output = dotProduct(weightsOutput, hiddenState);
 
-        // FIXED: Add bias to output
         for (int i = 0; i < output.length; i++) {
             output[i] += biasOutput[i];
         }
@@ -253,22 +249,15 @@ public class LSTMNetwork implements Serializable {
         }
 
         double predictedPrice = output[0];
-
-        // FIXED: Don't apply constraints here for direction prediction
-        // Just use the raw prediction to determine direction
-        
-        // Calculate percentage change from prediction
         double priceChange = (predictedPrice - lastClose) / lastClose;
-
-        // FIXED: Use smaller threshold for classification
-        double directionThreshold = 0.001; // 0.1% threshold
+        double directionThreshold = 0.001;
         
         if (priceChange > directionThreshold) {
-            return 1;  // Positive (up)
+            return 1;
         } else if (priceChange < -directionThreshold) {
-            return -1; // Negative (down)
+            return -1;
         } else {
-            return 0;  // Neutral
+            return 0;
         }
     }
 
@@ -282,29 +271,24 @@ public class LSTMNetwork implements Serializable {
         System.out.println("Using threshold: " + threshold);
 
         for (int i = 0; i < inputs.length - 1; i++) {
-            // FIXED: Use correct input size
             double[] input = Arrays.copyOf(inputs[i], Math.min(inputs[i].length, 18));
             
             double currentPrice = inputs[i][1];
             double nextPrice = inputs[i + 1][1];
             
-            // Predict direction using current price
             double predictedDirection = predictDirection(input, currentPrice, threshold);
             
-            // Calculate actual direction with SMALLER threshold
             double priceChange = (nextPrice - currentPrice) / currentPrice;
             double actualDirection;
             
-            // FIXED: Use smaller threshold for actual direction
-            if (priceChange > 0.001) { // 0.1% threshold
+            if (priceChange > 0.001) {
                 actualDirection = 1;
-            } else if (priceChange < -0.001) { // 0.1% threshold
+            } else if (priceChange < -0.001) {
                 actualDirection = -1;
             } else {
-                actualDirection = 0; // Neutral
+                actualDirection = 0;
             }
             
-            // FIXED: Don't skip neutral cases completely, just count them differently
             if (actualDirection == 0) {
                 skippedNeutral++;
                 continue;
@@ -312,20 +296,19 @@ public class LSTMNetwork implements Serializable {
 
             totalProcessed++;
             
-            // Debug first few predictions
             if (i < 5) {
                 System.out.printf("Sample %d: Current=%.2f, Next=%.2f, Change=%.4f%%, Predicted=%d, Actual=%d%n", 
                     i, currentPrice, nextPrice, priceChange * 100, (int)predictedDirection, (int)actualDirection);
             }
 
             if (predictedDirection == 1 && actualDirection == 1) {
-                confusionMatrix[0][0]++; // TP
+                confusionMatrix[0][0]++;
             } else if (predictedDirection == -1 && actualDirection == -1) {
-                confusionMatrix[1][1]++; // TN
+                confusionMatrix[1][1]++;
             } else if (predictedDirection == 1 && actualDirection == -1) {
-                confusionMatrix[0][1]++; // FP
+                confusionMatrix[0][1]++;
             } else if (predictedDirection == -1 && actualDirection == 1) {
-                confusionMatrix[1][0]++; // FN
+                confusionMatrix[1][0]++;
             }
         }
 
@@ -338,7 +321,6 @@ public class LSTMNetwork implements Serializable {
     }
 
     public void backpropagate(double[] input, double[] target, double learningRate) {
-        // Store current states before forward pass
         double[] savedHiddenState = Arrays.copyOf(this.hiddenState, this.hiddenState.length);
         double[] savedCellState = Arrays.copyOf(this.cellState, this.cellState.length);
         

@@ -1,11 +1,12 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
+import java.util.List;
+
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
-import java.util.List;
 
 @Entity
 public class Stock {
@@ -14,19 +15,17 @@ public class Stock {
     private Long id;
     private String symbol;
     private Double investmentAmount;
-    private Double price;  // The current price of the stock
+    private Double price;
+    @ElementCollection
+    @CollectionTable(name = "close_prices")
+    @Column(name = "price")
+    private List<Double> closePrices;
 
     @ElementCollection
-    @CollectionTable(name = "close_prices")  // Specifies the table to store closePrices
+    @CollectionTable(name = "historical_prices")
     @Column(name = "price")
-    private List<Double> closePrices;  // The list of close prices for recent days
+    private List<Double> historicalPrices;
 
-    @ElementCollection
-    @CollectionTable(name = "historical_prices")  // Specifies the table to store historicalPrices
-    @Column(name = "price")
-    private List<Double> historicalPrices;  // The list of historical prices
-
-    // Getters and Setters
     public Long getId() {
         return id;
     }

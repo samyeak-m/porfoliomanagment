@@ -1,15 +1,17 @@
 package com.stockmanagment.porfoliomanagment.service.nepse;
 
-import jakarta.annotation.PostConstruct;
-import com.stockmanagment.porfoliomanagment.repository.nepse.HistockDataRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.stockmanagment.porfoliomanagment.repository.nepse.HistockDataRepository;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @Service
 public class TableCreationService {
@@ -58,7 +60,7 @@ public class TableCreationService {
             logger.info("Table '{}' created successfully", tableName);
         } catch (Exception e) {
             logger.error("Error executing create table query for table: {}", tableName, e);
-            throw e;  // Rethrow the exception to ensure transaction rollback if needed
+            throw e;
         }
     }
 }

@@ -1,8 +1,13 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
-import jakarta.persistence.*;
-import java.math.BigDecimal;
 import java.time.LocalDate;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "yearly_data")
@@ -13,21 +18,21 @@ public class YearlyData {
     private int id;
 
     @Column(name = "date")
-    private LocalDate date; // Changed to LocalDate
+    private LocalDate date;
 
     @Column(name = "symbol")
     private String symbol;
 
-    @Column(name = "open") // Precision and scale added
+    @Column(name = "open")
     private Double open;
 
-    @Column(name = "high") // Precision and scale added
+    @Column(name = "high")
     private Double high;
 
-    @Column(name = "low") // Precision and scale added
+    @Column(name = "low")
     private Double low;
 
-    @Column(name = "close") // Precision and scale added
+    @Column(name = "close")
     private Double close;
 
     public int getId() {

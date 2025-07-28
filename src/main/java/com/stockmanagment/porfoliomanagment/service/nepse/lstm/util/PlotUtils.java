@@ -17,7 +17,7 @@ public class PlotUtils {
         XYSeries seriesPredicted = new XYSeries("Predicted");
 
         for (int i = 0; i < stockData.size(); i++) {
-            seriesActual.add(i, stockData.get(i)[1]); // Actual close price
+            seriesActual.add(i, stockData.get(i)[1]);
             if (i >= stockData.size() - predictions.size()) {
                 seriesPredicted.add(i, predictions.get(i - (stockData.size() - predictions.size())));
             }
@@ -36,7 +36,6 @@ public class PlotUtils {
                 true, true, false
         );
 
-        // Save the chart as a PNG
         String filePath = "predictions/" + stockSymbol + "_prediction.png";
         File file = new File(filePath);
         file.getParentFile().mkdirs();

@@ -1,7 +1,13 @@
 package com.stockmanagment.porfoliomanagment.model.nepse;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "varofall_data")
@@ -15,27 +21,26 @@ public class VarOfAllData {
     private String stockSymbol;
 
     @Column(name = "date")
-    private LocalDateTime date; // Changed to LocalDateTime
+    private LocalDateTime date;
 
     @Column(name = "days_of_investment")
     private int daysOfInvestment;
 
-    @Column(name = "mean_return") // Precision and scale added
+    @Column(name = "mean_return")
     private double meanReturn;
 
-    @Column(name = "volatility") // Precision and scale added
+    @Column(name = "volatility")
     private double volatility;
 
-    @Column(name = "var") // Precision and scale added
+    @Column(name = "var")
     private double var;
 
-    @Column(name = "initial_stock_price") // Precision and scale added
+    @Column(name = "initial_stock_price")
     private double initialStockPrice;
 
-    @Column(name = "confidence_level") // Precision and scale added
+    @Column(name = "confidence_level")
     private double confidenceLevel;
 
-    // Getters and setters
     public int getId() {
         return id;
     }

@@ -44,7 +44,7 @@ public class PortfolioDatabaseConfig {
         return builder
                 .dataSource(dataSource)
                 .properties(portfolioJpaProperties)
-                .packages("com.stockmanagment.porfoliomanagment.model.portfolio") // Fixed package path
+                .packages("com.stockmanagment.porfoliomanagment.model.portfolio")
                 .persistenceUnit("portfolio")
                 .build();
     }

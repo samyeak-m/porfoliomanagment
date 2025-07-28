@@ -1,5 +1,9 @@
 package com.stockmanagment.porfoliomanagment.config;
 
+import java.util.HashMap;
+
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -11,12 +15,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.PlatformTransactionManager;
-
-import jakarta.persistence.EntityManagerFactory;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-import javax.sql.DataSource;
-import java.util.HashMap;
+import jakarta.persistence.EntityManagerFactory;
 
 @Configuration
 @EnableTransactionManagement
@@ -46,7 +47,7 @@ public class NepseDatabaseConfig {
         return builder
                 .dataSource(dataSource)
                 .properties(nepseJpaProperties)
-                .packages("com.stockmanagment.porfoliomanagment.model.nepse") // Fixed package path
+                .packages("com.stockmanagment.porfoliomanagment.model.nepse")
                 .persistenceUnit("nepse")
                 .build();
     }
