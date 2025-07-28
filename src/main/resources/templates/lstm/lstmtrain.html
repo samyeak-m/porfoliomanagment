@@ -7,11 +7,21 @@
     <style>
         #metrics { white-space: pre; background: #f5f5f5; padding: 1em; border-radius: 5px; }
         .chart-container { width: 600px; margin: 20px auto; }
+        #status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .training { background-color: #fef9e7; color: #8b6914; border: 1px solid #fad5a5; }
+        .completed { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     </style>
 </head>
 <body>
     <h1>LSTM Training Dashboard</h1>
     <button id="trainBtn">Start Training</button>
+    <button id="incrementalBtn">Incremental Learning</button>
     <div id="status"></div>
     <h2>Training Metrics</h2>
     <div id="metrics"></div>
@@ -21,32 +31,125 @@
     <div class="chart-container">
         <canvas id="lossChart"></canvas>
     </div>
+    <div id="training-info"></div>
     <script>
         const trainBtn = document.getElementById('trainBtn');
+        const incrementalBtn = document.getElementById('incrementalBtn');
         const statusDiv = document.getElementById('status');
         const metricsDiv = document.getElementById('metrics');
         let trainingInProgress = false;
         let metricsInterval = null;
 
+        // Training status messages
+        const trainingMessages = [
+            "Initializing neural network...",
+            "Loading stock data from database...",
+            "Calculating technical indicators (EMA, SMA, RSI, MACD, Bollinger Bands)...",
+            "Preprocessing and normalizing data...",
+            "Splitting data into training/validation/test sets...",
+            "Starting LSTM training with 100 epochs...",
+            "Training epoch 1-20: Learning basic patterns...",
+            "Training epoch 21-40: Adjusting weights and biases...",
+            "Training epoch 41-60: Fine-tuning predictions...",
+            "Training epoch 61-80: Optimizing accuracy...",
+            "Training epoch 81-100: Final optimization...",
+            "Calculating final test accuracy and loss...",
+            "Generating confusion matrix and F1 scores...",
+            "Saving trained model and generating charts...",
+            "Training completed successfully!"
+        ];
+
+        let messageIndex = 0;
+        let messageInterval = null;
+
         trainBtn.onclick = async () => {
-            statusDiv.textContent = "Training started...";
             trainingInProgress = true;
-            await fetch('/api/lstm/train', { method: 'POST' });
-            statusDiv.textContent = "Training in progress...";
-            if (metricsInterval) clearInterval(metricsInterval);
-            metricsInterval = setInterval(fetchMetrics, 3000);
+            trainBtn.disabled = true;
+            incrementalBtn.disabled = true;
+            messageIndex = 0;
+            
+            // Start showing training progress
+            showTrainingProgress();
+            
+            try {
+                const response = await fetch('/api/lstm/train', { method: 'POST' });
+                if (response.ok) {
+                    // Training completed successfully
+                    stopTrainingProgress();
+                    statusDiv.textContent = "Training completed successfully!";
+                    statusDiv.className = 'completed';
+                    
+                    // Fetch final metrics
+                    await fetchMetrics();
+                } else {
+                    throw new Error('Training failed');
+                }
+            } catch (error) {
+                stopTrainingProgress();
+                statusDiv.textContent = "Training failed: " + error.message;
+                statusDiv.className = 'error';
+            } finally {
+                trainingInProgress = false;
+                trainBtn.disabled = false;
+                incrementalBtn.disabled = false;
+            }
         };
 
-        async function fetchMetrics() {
-            const res = await fetch('/api/lstm/metrics');
-            const text = await res.text();
-            metricsDiv.textContent = text;
-            updateCharts(text);
+        incrementalBtn.onclick = async () => {
+            statusDiv.textContent = "Starting incremental learning...";
+            statusDiv.className = 'training';
+            incrementalBtn.disabled = true;
+            
+            try {
+                await fetch('/api/lstm/incremental-train', { method: 'POST' });
+                statusDiv.textContent = "Incremental learning completed!";
+                statusDiv.className = 'completed';
+                
+                // Fetch updated metrics
+                await fetchMetrics();
+            } catch (error) {
+                statusDiv.textContent = "Incremental learning failed: " + error.message;
+                statusDiv.className = 'error';
+            } finally {
+                incrementalBtn.disabled = false;
+            }
+        };
 
-            if (text.includes('Training Completed') || text.match(/Final F1 Score/i)) {
-                statusDiv.textContent = "Training completed!";
-                trainingInProgress = false;
-                if (metricsInterval) clearInterval(metricsInterval);
+        function showTrainingProgress() {
+            statusDiv.className = 'training';
+            
+            // Show immediate message
+            statusDiv.textContent = trainingMessages[messageIndex];
+            messageIndex++;
+            
+            // Update message every 8 seconds
+            messageInterval = setInterval(() => {
+                if (messageIndex < trainingMessages.length - 1 && trainingInProgress) {
+                    statusDiv.textContent = trainingMessages[messageIndex];
+                    messageIndex++;
+                } else if (trainingInProgress) {
+                    // Keep showing the last progress message
+                    statusDiv.textContent = "Finalizing training process...";
+                }
+            }, 8000); // 8 seconds per message
+        }
+
+        function stopTrainingProgress() {
+            if (messageInterval) {
+                clearInterval(messageInterval);
+                messageInterval = null;
+            }
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/lstm/metrics');
+                const text = await res.text();
+                metricsDiv.textContent = text;
+                updateCharts(text);
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+                metricsDiv.textContent = 'Error loading metrics';
             }
         }
 
@@ -68,8 +171,11 @@
                     valLossData.push(Number(match[5]));
                 }
             });
-            drawChart('accuracyChart', 'Accuracy', epochs, accData, valAccData);
-            drawChart('lossChart', 'Loss', epochs, lossData, valLossData);
+            
+            if (epochs.length > 0) {
+                drawChart('accuracyChart', 'Accuracy', epochs, accData, valAccData);
+                drawChart('lossChart', 'Loss', epochs, lossData, valLossData);
+            }
         }
 
         function drawChart(canvasId, label, epochs, trainData, valData) {
@@ -90,7 +196,32 @@
                 }
             });
         }
-        fetchMetrics();
+
+        async function fetchTrainingStatus() {
+            try {
+                const res = await fetch('/api/lstm/training-status');
+                const status = await res.json();
+                
+                document.getElementById('training-info').innerHTML = `
+                    <h3>Training Status</h3>
+                    <p><strong>Last Training:</strong> ${status.lastTrainingDate}</p>
+                    <p><strong>Days Since Training:</strong> ${status.daysSinceTraining}</p>
+                    <p><strong>Model Exists:</strong> ${status.modelExists ? 'Yes' : 'No'}</p>
+                    <p><strong>Next Training Type:</strong> ${status.needsIncremental ? 'Incremental Learning' : 'Use Existing Model'}</p>
+                    <p><strong>Model Version:</strong> ${status.version}</p>
+                    <p><strong>Hidden Size:</strong> ${status.hiddenSize}</p>
+                    <p><strong>Input Size:</strong> ${status.inputSize}</p>
+                `;
+            } catch (error) {
+                console.error('Error fetching training status:', error);
+            }
+        }
+
+        // Initialize page - fetch once on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            await fetchTrainingStatus();
+            await fetchMetrics(); // Initial metrics load
+        });
     </script>
 </body>
 </html>

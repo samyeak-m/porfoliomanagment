@@ -120,6 +120,37 @@ public class DatabaseHelper {
         return stockData;
     }
 
+    public List<double[]> loadStockDataAfterDate(String tableName, LocalDate afterDate) throws SQLException {
+        List<double[]> stockData = new ArrayList<>();
+        String query = "SELECT date, close, high, low, open FROM daily_data_" + tableName + 
+                       " WHERE date > ? ORDER BY date";
+
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            
+            pstmt.setDate(1, Date.valueOf(afterDate));
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Date date = rs.getDate("date");
+                    double close = rs.getDouble("close");
+                    double high = rs.getDouble("high");
+                    double low = rs.getDouble("low");
+                    double open = rs.getDouble("open");
+
+                    double dateAsDouble = date.getTime();
+                    double normalizedTableName = tableNameMap.get(tableName);
+
+                    stockData.add(new double[]{normalizedTableName, close, high, low, open, dateAsDouble});
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error loading stock data after date for table " + tableName, e);
+            throw e;
+        }
+        return stockData;
+    }
+
     private void createPredictionsTableIfNotExists() throws SQLException {
         String createTableSQL = "CREATE TABLE IF NOT EXISTS predictions (" +
                 "id INT AUTO_INCREMENT PRIMARY KEY, " +

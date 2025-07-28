@@ -1,6 +1,7 @@
 package com.stockmanagment.porfoliomanagment.controller;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,9 +32,20 @@ public class PredictionController {
         return "Training started!";
     }
 
+    @PostMapping("/incremental-train")
+    public String incrementalTrain() {
+        lstmService.incrementalLearning();
+        return "Incremental training completed!";
+    }
+
     @GetMapping("/metrics")
     public String getMetrics() throws IOException {
         String path = "src/main/resources/static/model/output_v1_e10_b16_h20/confusion.txt";
         return new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(path)));
+    }
+
+    @GetMapping("/training-status")
+    public Map<String, Object> getTrainingStatus() {
+        return lstmService.getTrainingStatus();
     }
 }
