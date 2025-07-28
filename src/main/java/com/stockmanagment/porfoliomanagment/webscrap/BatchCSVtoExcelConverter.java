@@ -1,12 +1,23 @@
 package com.stockmanagment.porfoliomanagment.webscrap;
 
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import java.io.*;
-import java.nio.file.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class BatchCSVtoExcelConverter {
 
@@ -14,12 +25,10 @@ public class BatchCSVtoExcelConverter {
         File inputFolder = new File(inputFolderPath);
         File outputFolder = new File(outputFolderPath);
 
-        // Create output folder if it doesn't exist
         if (!outputFolder.exists()) {
             outputFolder.mkdirs();
         }
 
-        // Loop through each file in the input folder
         for (File csvFile : inputFolder.listFiles()) {
             if (csvFile.isFile() && csvFile.getName().toLowerCase().endsWith(".csv")) {
                 String excelFileName = csvFile.getName().replace(".csv", ".xlsx");
@@ -45,13 +54,12 @@ public class BatchCSVtoExcelConverter {
                 for (String value : data) {
                     Cell cell = row.createCell(colNum++);
 
-                    // Enhanced Data Type Detection
                     if (isNumeric(value)) {
                         cell.setCellValue(Double.parseDouble(value));
                         cell.setCellType(CellType.NUMERIC);
                     } else if (isDate(value)) {
                         try {
-                            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // Adjust date format if needed
+                            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
                             Date date = dateFormat.parse(value);
                             cell.setCellValue(date);
                             cell.setCellType(CellType.NUMERIC);
@@ -68,7 +76,6 @@ public class BatchCSVtoExcelConverter {
                         cell.setCellType(CellType.STRING);
                     }
 
-                    // Additional Formatting: Auto-size columns (optional)
                     sheet.autoSizeColumn(colNum - 1);
                 }
             }
@@ -84,7 +91,6 @@ public class BatchCSVtoExcelConverter {
     }
 
     private static boolean isDate(String str) {
-        // You can customize this date pattern as needed
         return str.matches("\\d{4}-\\d{2}-\\d{2}");
     }
 

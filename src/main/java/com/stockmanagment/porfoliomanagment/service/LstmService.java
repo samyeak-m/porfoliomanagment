@@ -18,13 +18,13 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.stockmanagment.porfoliomanagment.config.LstmConfig;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMNetwork;
-import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMTrainer;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.CustomChartUtils;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.DataPreprocessor;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.TechnicalIndicators;
@@ -63,6 +63,9 @@ public class LstmService {
             currentTrainingMessage = "Initializing neural network...";
             currentProgress = 0.0;
             
+            // ADD: Check memory at start of training
+            checkMemoryAndCleanup();
+            
             createDirectory(config.getOutputDir());
             currentTrainingMessage = "Creating output directory completed";
             currentProgress = 5.0;
@@ -70,6 +73,9 @@ public class LstmService {
             DatabaseHelper dbHelper = new DatabaseHelper();
             currentTrainingMessage = "Connecting to database...";
             currentProgress = 10.0;
+            
+            // ADD: Check memory before loading data
+            checkMemoryAndCleanup();
             
             lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             
@@ -116,6 +122,9 @@ public class LstmService {
                 
                 currentTrainingMessage = "Starting LSTM training with " + config.getEpochs() + " epochs...";
                 
+                // ADD: Check memory during training
+                checkMemoryAndCleanup();
+                
                 double[] averages = trainModel(lstm, trainData, testData, config.getEpochs(), config.getTrainingRate(), min, max);
                 
                 currentTrainingMessage = "Training completed. Saving model...";
@@ -132,8 +141,9 @@ public class LstmService {
                        trainData, testData, testData);
                 
                 generateTrainingCharts();
-                
                 saveLastTrainingDate();
+                
+                optimizeMemoryUsage();
                 
                 System.out.println("Training completed successfully!");
                 
@@ -152,6 +162,7 @@ public class LstmService {
             currentTrainingMessage = "Training failed: " + e.getMessage();
             System.err.println("Training failed: " + e.getMessage());
             e.printStackTrace();
+            optimizeMemoryUsage();
             throw new RuntimeException("Training failed: " + e.getMessage(), e);
         }
     }
@@ -192,6 +203,9 @@ public class LstmService {
 
     public void incrementalLearning() {
         try {
+            // ADD: Check memory at start
+            checkMemoryAndCleanup();
+            
             if (!shouldPerformIncrementalLearning()) {
                 System.out.println("No incremental learning needed yet.");
                 return;
@@ -227,14 +241,21 @@ public class LstmService {
             
             double[][] normalizedNewData = DataPreprocessor.normalize(extendedData, min, max);
             
+            // ADD: Check memory after data loading
+            checkMemoryAndCleanup();
+            
             performIncrementalTraining(lstm, normalizedNewData);
             
             lstm.saveModel(config.getModelFilePath());
             saveLastTrainingDate();
             
+            // ADD: Final cleanup
+            optimizeMemoryUsage();
+            
             System.out.println("Incremental learning completed successfully!");
             
         } catch (Exception e) {
+            optimizeMemoryUsage();
             throw new RuntimeException("Incremental learning failed: " + e.getMessage(), e);
         }
     }
@@ -270,9 +291,11 @@ public class LstmService {
         
         double incrementalLearningRate = config.getTrainingRate() * 0.1;
         int incrementalEpochs = 5;
-        LSTMTrainer trainer = new LSTMTrainer(lstm, incrementalLearningRate);
         
         for (int epoch = 0; epoch < incrementalEpochs; epoch++) {
+            // ADD: Check memory at start of each epoch
+            checkMemoryAndCleanup();
+            
             System.out.println("Incremental epoch " + (epoch + 1) + "/" + incrementalEpochs);
             
             List<double[]> dataList = Arrays.asList(newData);
@@ -296,6 +319,11 @@ public class LstmService {
             
             double accuracy = calculateIncrementalAccuracy(lstm, shuffledData);
             System.out.println("Incremental Epoch " + epoch + " Accuracy: " + String.format("%.4f", accuracy));
+            
+            // ADD: Check memory after each epoch
+            if (isMemoryLow()) {
+                optimizeMemoryUsage();
+            }
         }
     }
 
@@ -358,7 +386,6 @@ public class LstmService {
     }
 
     private double[] trainModel(LSTMNetwork lstm, double[][] trainData, double[][] validationData, int epochs, double learningRate, double[] min, double[] max) {
-        LSTMTrainer trainer = new LSTMTrainer(lstm, learningRate);
         double totalAccuracy = 0;
         double totalLoss = 0;
 
@@ -370,11 +397,14 @@ public class LstmService {
             
             long startTime = System.currentTimeMillis();
             
+            // ADD: Check memory every 10 epochs
+            if (epoch % 10 == 0) {
+                checkMemoryAndCleanup();
+            }
+            
             int totalDataPoints = trainData.length;
             int batchSize = config.getBatchSize();
             int batches = totalDataPoints / batchSize;
-
-            double totalEpochLoss = 0;
 
             for (int batch = 0; batch < batches; batch++) {
                 double[][] batchData = Arrays.copyOfRange(trainData, batch * batchSize, (batch + 1) * batchSize);
@@ -403,10 +433,6 @@ public class LstmService {
 
             long endTime = System.currentTimeMillis();
             long elapsedTimeMillis = endTime - startTime;
-            String elapsedTime = String.format("%02d:%02d:%02d",
-                    (elapsedTimeMillis / (1000 * 60 * 60)) % 24,
-                    (elapsedTimeMillis / (1000 * 60)) % 60,
-                    (elapsedTimeMillis / 1000) % 60);
 
             epochList.add(epoch);
             accuracyList.add(accuracy);
@@ -423,6 +449,11 @@ public class LstmService {
                 "Epoch %d/%d - Acc: %.3f, Loss: %.3f, Val_Acc: %.3f, Val_Loss: %.3f", 
                 epoch + 1, epochs, accuracy, epochLoss, validationAccuracy, validationLoss
             );
+
+            // ADD: Check memory after heavy operations
+            if (epoch % 25 == 0) {
+                checkMemoryAndCleanup();
+            }
 
             try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
@@ -749,55 +780,6 @@ public class LstmService {
         return new double[][][]{trainData, testData};
     }
 
-    private double[][] balanceDataset(double[][] data) {
-        List<double[]> positiveClass = new ArrayList<>();
-        List<double[]> negativeClass = new ArrayList<>();
-        
-        System.out.println("Original data size: " + data.length);
-        
-        for (int i = 0; i < data.length - 1; i++) {
-            double currentPrice = data[i][1];
-            double nextPrice = data[i + 1][1];
-            
-            double priceChange = (nextPrice - currentPrice) / currentPrice;
-            
-            if (priceChange > 0.001) {
-                positiveClass.add(data[i]);
-            } else if (priceChange < -0.001) {
-                negativeClass.add(data[i]);
-            }
-        }
-        
-        System.out.println("Positive samples: " + positiveClass.size());
-        System.out.println("Negative samples: " + negativeClass.size());
-        
-        int minSize = Math.min(positiveClass.size(), negativeClass.size());
-        
-        if (minSize < 100) {
-            System.err.println("Warning: Small balanced dataset size: " + minSize);
-            System.err.println("Using original data without balancing");
-            return data;
-        }
-        
-        List<double[]> balancedData = new ArrayList<>();
-        balancedData.addAll(positiveClass.subList(0, minSize));
-        balancedData.addAll(negativeClass.subList(0, minSize));
-        
-        System.out.println("Balanced dataset: " + minSize + " positive, " + minSize + " negative samples");
-        
-        return balancedData.toArray(new double[0][]);
-    }
-
-    private void checkForNaN(double[][] data, String label) {
-        for (int i = 0; i < data.length; i++) {
-            for (int j = 0; j < data[i].length; j++) {
-                if (Double.isNaN(data[i][j]) || Double.isInfinite(data[i][j])) {
-                    System.err.println("Invalid value in " + label + " at [" + i + "][" + j + "]: " + data[i][j]);
-                }
-            }
-        }
-    }
-
     private void checkForNaN1D(double[] data, String label) {
         boolean found = false;
         for (int i = 0; i < data.length; i++) {
@@ -814,30 +796,11 @@ public class LstmService {
         return normalizedValue * (maxValue - minValue) + minValue;
     }
 
-    private double[][] getActualTechnicalIndicators(double[][] normalizedTrainData, int sampleSize) {
-        try {
-            int samples = Math.min(sampleSize, normalizedTrainData.length);
-            double[][] denormalizedData = new double[samples][6];
-            
-            for (int i = 0; i < samples; i++) {
-                denormalizedData[i][0] = normalizedTrainData[i][0];
-                denormalizedData[i][1] = denormalizeValue(normalizedTrainData[i][1], min[1], max[1]);
-                denormalizedData[i][2] = denormalizeValue(normalizedTrainData[i][2], min[2], max[2]);
-                denormalizedData[i][3] = denormalizeValue(normalizedTrainData[i][3], min[3], max[3]);
-                denormalizedData[i][4] = denormalizeValue(normalizedTrainData[i][4], min[4], max[4]);
-                denormalizedData[i][5] = denormalizeValue(normalizedTrainData[i][5], min[5], max[5]);
-            }
-            
-            return TechnicalIndicators.calculate(denormalizedData, 16, 3);
-            
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error calculating actual technical indicators", e);
-            return new double[0][0];
-        }
-    }
-
     public PredictionResponseDTO predict(String stockSymbol) {
         try {
+            // ADD: Check memory before prediction
+            checkMemoryAndCleanup();
+            
             lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             if (lstm == null) {
                 throw new RuntimeException("No trained model found. Please train the model first.");
@@ -893,9 +856,53 @@ public class LstmService {
 
             return response;
         } catch (Exception e) {
-            System.err.println("Prediction failed for " + stockSymbol + ": " + e.getMessage());
-            e.printStackTrace();
+            // ADD: Cleanup on error
+            if (isMemoryLow()) {
+                optimizeMemoryUsage();
+            }
             throw new RuntimeException("Prediction failed: " + e.getMessage(), e);
+        }
+    }
+
+    // ADD: Helper method to check if memory is low
+    private boolean isMemoryLow() {
+        Runtime runtime = Runtime.getRuntime();
+        long maxMemory = runtime.maxMemory();
+        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+        double memoryUsagePercent = (double) usedMemory / maxMemory * 100;
+        return memoryUsagePercent > 75;
+    }
+
+    // ADD: Enhanced memory monitoring with logging
+    private void checkMemoryAndCleanup() {
+        Runtime runtime = Runtime.getRuntime();
+        long maxMemory = runtime.maxMemory() / 1024 / 1024;  // MB
+        long totalMemory = runtime.totalMemory() / 1024 / 1024;  // MB
+        long freeMemory = runtime.freeMemory() / 1024 / 1024;  // MB
+        long usedMemory = totalMemory - freeMemory;
+        double memoryUsagePercent = (double) usedMemory / maxMemory * 100;
+        
+        LOGGER.log(Level.INFO, String.format(
+            "Memory Status - Used: %d MB, Free: %d MB, Total: %d MB, Max: %d MB (%.1f%% used)",
+            usedMemory, freeMemory, totalMemory, maxMemory, memoryUsagePercent
+        ));
+        
+        if (memoryUsagePercent > 80) {
+            LOGGER.log(Level.WARNING, "High memory usage detected: " + String.format("%.1f%%", memoryUsagePercent));
+            optimizeMemoryUsage();
+            
+            System.gc();
+            
+            runtime = Runtime.getRuntime();
+            long newUsedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
+            LOGGER.log(Level.INFO, String.format("Memory after cleanup: %d MB", newUsedMemory));
+        }
+    }
+
+    @Scheduled(fixedRate = 30000)
+    public void periodicMemoryCheck() {
+        if (isTraining) {
+            checkMemoryAndCleanup();
         }
     }
 
@@ -1010,38 +1017,34 @@ public class LstmService {
         }
     }
 
-    private void validateModelInputs(double[] input, String context) {
-        if (input == null) {
-            throw new IllegalArgumentException("Input cannot be null in " + context);
-        }
-        
-        if (input.length != config.getInputSize()) {
-            throw new IllegalArgumentException(
-                String.format("Input size mismatch in %s. Expected: %d, Got: %d", 
-                    context, config.getInputSize(), input.length));
-        }
-        
-        for (int i = 0; i < input.length; i++) {
-            if (!Double.isFinite(input[i])) {
-                throw new IllegalArgumentException(
-                    String.format("Invalid input value at index %d in %s: %f", 
-                        i, context, input[i]));
-            }
-        }
-    }
-
     private void optimizeMemoryUsage() {
-        epochList.clear();
-        accuracyList.clear();
-        lossList.clear();
-        validationAccuracyList.clear();
-        validationLossList.clear();
-        
-        System.gc();
-        
-        Runtime runtime = Runtime.getRuntime();
-        long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-        System.out.println("Memory usage: " + (usedMemory / 1024 / 1024) + " MB");
+        try {
+            epochList.clear();
+            accuracyList.clear();
+            lossList.clear();
+            validationAccuracyList.clear();
+            validationLossList.clear();
+            
+            currentTrainingMessage = "";
+            currentEpoch = 0;
+            currentProgress = 0.0;
+            
+            System.gc();
+            
+            Runtime runtime = Runtime.getRuntime();
+            long totalMemory = runtime.totalMemory() / 1024 / 1024;
+            long freeMemory = runtime.freeMemory() / 1024 / 1024;
+            long usedMemory = totalMemory - freeMemory;
+            long maxMemory = runtime.maxMemory() / 1024 / 1024;
+            
+            LOGGER.log(Level.INFO, String.format(
+                "Memory optimized - Used: %d MB, Free: %d MB, Total: %d MB, Max: %d MB", 
+                usedMemory, freeMemory, totalMemory, maxMemory
+            ));
+            
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Error during memory optimization: " + e.getMessage());
+        }
     }
 
     public Map<String, Object> getCurrentTrainingProgress() {
@@ -1085,6 +1088,7 @@ public class LstmService {
             String chartDir = config.getOutputDir() + "/charts" + config.getVersion() + "_" + config.getEpochs() + "/accuracy";
             createDirectory(chartDir);
             
+            // Generate accuracy and loss charts
             CustomChartUtils.saveAccuracyChart("Model Accuracy", epochList, accuracyList, validationAccuracyList, 
                 chartDir + "/model_accuracy.png", "Epochs", "Accuracy", 10);
             CustomChartUtils.saveLossChart("Model Loss", epochList, lossList, validationLossList, 

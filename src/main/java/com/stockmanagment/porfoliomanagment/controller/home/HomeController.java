@@ -207,8 +207,6 @@ public class HomeController {
         return true;
     }
     private double calculateNextClosePrice(String stockSymbol, double initialStockPrice) {
-        LocalDate today = LocalDate.now();
-
         if (isPriceStable(stockSymbol, initialStockPrice)) {
             if (previousPredictions.containsKey(stockSymbol)) {
                 logger.info("Price stable for {}. Returning previous prediction.", stockSymbol);

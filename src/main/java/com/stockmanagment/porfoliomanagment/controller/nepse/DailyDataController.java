@@ -16,14 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
-import com.stockmanagment.porfoliomanagment.service.nepse.DailyDataService;
 
 @RestController
 @RequestMapping("/api/daily-data")
 public class DailyDataController {
-
-    @Autowired
-    private DailyDataService dailyDataService;
 
     @Autowired
     private CustomDailyDataRepository customDailyDataRepository;

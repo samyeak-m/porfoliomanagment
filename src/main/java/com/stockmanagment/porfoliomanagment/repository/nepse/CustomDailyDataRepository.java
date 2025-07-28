@@ -1,9 +1,9 @@
 package com.stockmanagment.porfoliomanagment.repository.nepse;
 
-import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import java.sql.Timestamp;
-import java.time.LocalDate;
 import java.util.List;
+
+import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 
 public interface CustomDailyDataRepository {
 
