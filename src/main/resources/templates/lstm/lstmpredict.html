@@ -416,6 +416,178 @@
             background: var(--royal-secondary);
             border-radius: 2px;
         }
+
+        /* VaR Configuration Section */
+        .var-config-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--royal-bg);
+            border-radius: 12px;
+            border: 1px solid var(--royal-light);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header h3 {
+            color: var(--royal-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .section-header p {
+            color: var(--royal-text-light);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .config-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--royal-text);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .config-select {
+            padding: 10px 12px;
+            border: 2px solid var(--royal-light);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            color: var(--royal-text);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .config-select:focus {
+            outline: none;
+            border-color: var(--royal-primary);
+            box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+        }
+
+        .input-help {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--royal-text-light);
+            font-style: italic;
+        }
+
+        /* Enhanced Results Display for VaR */
+        .var-results-section {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            border-left: 4px solid var(--royal-primary);
+        }
+
+        .var-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .var-metric {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .var-metric-label {
+            font-size: 0.75rem;
+            color: var(--royal-text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .var-metric-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--royal-text);
+        }
+
+        .var-metric-value.risk-high {
+            color: #dc2626;
+        }
+
+        .var-metric-value.risk-medium {
+            color: #d97706;
+        }
+
+        .var-metric-value.risk-low {
+            color: #059669;
+        }
+
+        /* Risk Gauge */
+        .risk-gauge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+
+        .gauge-container {
+            position: relative;
+            width: 120px;
+            height: 60px;
+        }
+
+        .gauge-arc {
+            width: 100%;
+            height: 100%;
+            border-radius: 120px 120px 0 0;
+            background: linear-gradient(90deg, #059669 0%, #d97706 50%, #dc2626 100%);
+            position: relative;
+        }
+
+        .gauge-needle {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 2px;
+            height: 50px;
+            background: #1f2937;
+            transform-origin: bottom;
+            transition: transform 0.5s ease;
+        }
+
+        .gauge-needle::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -2px;
+            width: 6px;
+            height: 6px;
+            background: #1f2937;
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
@@ -436,32 +608,26 @@
         <div class="card-body">
             <form id="predict-form">
                 <div class="form-group">
-                    <label for="stockSymbol" class="form-label">
-                        <i class="fas fa-building"></i> Stock Symbol
-                    </label>
-                    <div class="input-container" id="stockDropdown">
-                        <input 
-                            type="text" 
-                            id="stockSymbol" 
-                            name="stockSymbol" 
-                            class="stock-input"
-                            placeholder="Type stock symbol (e.g., NABIL)"
-                            autocomplete="off"
-                            maxlength="10"
-                            required
-                        >
-                        <i class="fas fa-search input-icon"></i>
-                        <div class="dropdown-list" id="stockDropdownList">
-                            <div class="loading">
-                                <div class="spinner"></div>
-                                Loading...
-                            </div>
-                        </div>
-                    </div>
+                    <label for="stockSymbol">Stock Symbol:</label>
+                    <input type="text" id="stockSymbol" name="stockSymbol" required placeholder="e.g., NTC">
                 </div>
+                <div class="form-group">
+                    <label for="periodValue">Investment Period:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="periodValue" name="periodValue" min="1" required placeholder="Enter value" style="flex:2;">
+                        <select id="periodUnit" name="periodUnit" style="flex:1;">
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="months">Months</option>
+                            <option value="years">Years</option>
+                        </select>
+                    </div>
+                    <small class="input-help">You can enter e.g. 3 months, 2 years, etc.</small>
+                </div>
+                <!-- Keep your other VaR config fields if needed -->
                 <button type="submit" class="predict-btn" id="predictBtn">
-                    <i class="fas fa-brain"></i>
-                    <span>Predict Price</span>
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analyze Stock & Calculate VaR</span>
                 </button>
             </form>
         </div>
@@ -620,30 +786,57 @@ class CompactPredictionForm {
     
     async handleSubmit(e) {
         e.preventDefault();
-        
+
         const stockSymbol = document.getElementById('stockSymbol').value.trim().toUpperCase();
+
+        // Get period value and unit
+        const periodValue = parseInt(document.getElementById('periodValue').value);
+        const periodUnit = document.getElementById('periodUnit').value;
+
+        // Convert to days
+        let daysOfInvestment = periodValue;
+        if (periodUnit === 'weeks') daysOfInvestment *= 7;
+        else if (periodUnit === 'months') daysOfInvestment *= 30;
+        else if (periodUnit === 'years') daysOfInvestment *= 365;
+
+        // Get other VaR config fields as needed
+        const confidenceLevel = document.getElementById('confidenceLevel')?.value || "0.95";
+        const numSimulations = parseInt(document.getElementById('numSimulations')?.value) || 10000;
+
         if (!stockSymbol) {
             this.showError("Please enter a stock symbol");
             return;
         }
-        
+        if (daysOfInvestment < 1) {
+            this.showError("Investment period must be at least 1 day");
+            return;
+        }
+
         this.setLoadingState(true);
-        
+
         try {
-            const response = await fetch("/api/lstm/predict", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ stockSymbol })
+            const requestData = {
+                stockSymbol: stockSymbol,
+                daysOfInvestment: daysOfInvestment,
+                confidenceLevel: confidenceLevel,
+                numSimulations: numSimulations
+            };
+
+            const response = await fetch('/api/lstm/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
             });
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.showResults(data);
-            } else {
-                throw new Error('Prediction failed');
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+
+            const data = await response.json();
+            this.showResults(data);
+
         } catch (error) {
-            this.showError("Unable to predict. Please try again.");
+            this.showError("Unable to predict. Please try again. " + error.message);
         } finally {
             this.setLoadingState(false);
         }
@@ -652,8 +845,8 @@ class CompactPredictionForm {
     setLoadingState(loading) {
         this.button.disabled = loading;
         this.button.innerHTML = loading ? 
-            '<div class="spinner"></div><span>Predicting...</span>' :
-            '<i class="fas fa-brain"></i><span>Predict Price</span>';
+            '<div class="spinner"></div><span>Analyzing...</span>' : 
+            '<i class="fas fa-chart-line"></i><span>Analyze Stock & Calculate VaR</span>';
     }
     
     showResults(data) {
@@ -661,11 +854,19 @@ class CompactPredictionForm {
         const changeIcon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
         const changeClass = isPositive ? 'positive' : 'negative';
         
+        // Determine risk level based on VaR percentage
+        const riskLevel = this.getRiskLevel(data.varPercentage);
+        const riskClass = this.getRiskClass(data.varPercentage);
+        
         this.resultsDiv.innerHTML = `
             <div class="results-header">
-                <h3><i class="fas fa-chart-bar"></i> ${data.stockSymbol} Prediction</h3>
+                <h3><i class="fas fa-chart-bar"></i> ${data.stockSymbol} Complete Analysis</h3>
             </div>
             <div class="results-body">
+                <!-- LSTM Prediction Section -->
+                <div class="section-title">
+                    <i class="fas fa-brain"></i> AI Price Prediction
+                </div>
                 <div class="result-grid">
                     <div class="result-item">
                         <div class="result-label">Predicted Price</div>
@@ -676,7 +877,7 @@ class CompactPredictionForm {
                         <div class="result-value">NPR ${data.lastClose.toFixed(2)}</div>
                     </div>
                     <div class="result-item">
-                        <div class="result-label">Change</div>
+                        <div class="result-label">Point Change</div>
                         <div class="result-value ${changeClass}">
                             <span class="price-indicator ${changeClass}">
                                 <i class="fas ${changeIcon}"></i>
@@ -685,13 +886,59 @@ class CompactPredictionForm {
                         </div>
                     </div>
                     <div class="result-item">
-                        <div class="result-label">Change %</div>
+                        <div class="result-label">Price Change %</div>
                         <div class="result-value ${changeClass}">
                             <span class="price-indicator ${changeClass}">
                                 <i class="fas ${changeIcon}"></i>
                                 ${data.priceChange > 0 ? '+' : ''}${data.priceChange.toFixed(2)}%
                             </span>
                         </div>
+                    </div>
+                </div>
+
+                <!-- VaR Risk Analysis Section -->
+                <div class="var-results-section">
+                    <div class="section-title">
+                        <i class="fas fa-shield-alt"></i> Value at Risk (VaR) Analysis
+                    </div>
+                    
+                    <div class="var-summary">
+                        <div class="var-metric">
+                            <div class="var-metric-label">Value at Risk</div>
+                            <div class="var-metric-value ${riskClass}">NPR ${data.varValue.toFixed(2)}</div>
+                        </div>
+                        <div class="var-metric">
+                            <div class="var-metric-label">Risk Percentage</div>
+                            <div class="var-metric-value ${riskClass}">${data.varPercentage.toFixed(2)}%</div>
+                        </div>
+                        <div class="var-metric">
+                            <div class="var-metric-label">Confidence Level</div>
+                            <div class="var-metric-value">${data.confidenceLevel.toFixed(1)}%</div>
+                        </div>
+                        <div class="var-metric">
+                            <div class="var-metric-label">Risk Category</div>
+                            <div class="var-metric-value ${riskClass}">
+                                <span class="risk-badge ${riskClass}">${riskLevel}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Gauge -->
+                    <div class="risk-gauge">
+                        <div class="gauge-container">
+                            <div class="gauge-arc"></div>
+                            <div class="gauge-needle" style="transform: rotate(${this.calculateGaugeAngle(data.varPercentage)}deg)"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Investment Recommendation -->
+                <div class="recommendation-section">
+                    <div class="section-title">
+                        <i class="fas fa-lightbulb"></i> Investment Recommendation
+                    </div>
+                    <div class="recommendation-card ${riskClass}">
+                        ${this.getInvestmentRecommendation(data)}
                     </div>
                 </div>
             </div>
@@ -701,10 +948,66 @@ class CompactPredictionForm {
         this.resultsDiv.scrollIntoView({ behavior: 'smooth' });
     }
     
+    calculateGaugeAngle(varPercentage) {
+        // Convert 0-30% risk to -90 to 90 degrees
+        const maxRisk = 30;
+        const normalizedRisk = Math.min(varPercentage, maxRisk) / maxRisk;
+        return (normalizedRisk * 180) - 90;
+    }
+    
+    getRiskLevel(varPercentage) {
+        if (varPercentage <= 5) return "Low Risk";
+        if (varPercentage <= 10) return "Medium Risk";
+        if (varPercentage <= 20) return "High Risk";
+        return "Very High Risk";
+    }
+    
+    getRiskClass(varPercentage) {
+        if (varPercentage <= 5) return "risk-low";
+        if (varPercentage <= 10) return "risk-medium";
+        if (varPercentage <= 20) return "risk-high";
+        return "risk-high";
+    }
+    
+    getInvestmentRecommendation(data) {
+        const riskPercentage = data.varPercentage;
+        const priceChange = data.priceChange;
+        
+        let recommendation = "";
+        let icon = "";
+        
+        if (riskPercentage <= 5 && priceChange > 2) {
+            recommendation = "Strong Buy - Low risk with positive prediction";
+            icon = "fas fa-thumbs-up";
+        } else if (riskPercentage <= 10 && priceChange > 0) {
+            recommendation = "Buy - Moderate risk with upward trend";
+            icon = "fas fa-arrow-up";
+        } else if (riskPercentage <= 10 && priceChange < 0) {
+            recommendation = "Hold - Moderate risk with downward prediction";
+            icon = "fas fa-hand-paper";
+        } else if (riskPercentage > 20) {
+            recommendation = "Avoid - High risk investment";
+            icon = "fas fa-exclamation-triangle";
+        } else {
+            recommendation = "Caution - Analyze market conditions carefully";
+            icon = "fas fa-eye";
+        }
+        
+        return `
+            <div class="recommendation-content">
+                <i class="${icon}"></i>
+                <span>${recommendation}</span>
+            </div>
+            <div class="recommendation-details">
+                <small>Based on ${data.confidenceLevel.toFixed(1)}% confidence level over ${data.daysOfInvestment || 25} days</small>
+            </div>
+        `;
+    }
+    
     showError(message) {
         this.resultsDiv.innerHTML = `
             <div class="error-message">
-                <i class="fas fa-exclamation-circle"></i>
+                <i class="fas fa-exclamation-triangle"></i>
                 <span>${message}</span>
             </div>
         `;
