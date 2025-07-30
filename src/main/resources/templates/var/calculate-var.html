@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/css/var/var.css">
 </head>
 <body>
-<div th:insert="~{layout/header :: header}"></div>
+<div th:replace="~{layout/header :: header}"></div>
 <div class="container">
     <h1>Calculate VaR for Stock</h1>
     <form th:action="@{/var}" method="get" class="var-form">
