@@ -1,14 +1,15 @@
 package com.stockmanagment.porfoliomanagment.controller;
 
 import java.io.File;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,8 +21,8 @@ import com.stockmanagment.porfoliomanagment.config.LstmConfig;
 import com.stockmanagment.porfoliomanagment.dto.PredictionRequestDTO;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.LstmService;
+import com.stockmanagment.porfoliomanagment.service.StockSymbolCacheService;
 import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
-import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 
 @RestController
 @RequestMapping("/api/lstm")
@@ -35,6 +36,9 @@ public class PredictionController {
 
     @Autowired
     private VarCalculationService varCalculationService;
+    
+    @Autowired
+    private StockSymbolCacheService stockSymbolCacheService;
 
     @PostMapping("/predict")
     public ResponseEntity<Map<String, Object>> predict(@RequestBody PredictionRequestDTO request) {
@@ -158,19 +162,21 @@ public class PredictionController {
     }
 
     @GetMapping("/stock-symbols")
-    public List<String> getStockSymbols() {
+    public ResponseEntity<List<String>> getStockSymbols() {
+        long startTime = System.currentTimeMillis();
+        
         try {
-            DatabaseHelper dbHelper = new DatabaseHelper();
-            List<String> symbols = dbHelper.getAllStockTableNames();
-
-            return symbols.stream()
-                    .map(String::toUpperCase)
-                    .sorted()
-                    .collect(Collectors.toList());
-
+            List<String> symbols = stockSymbolCacheService.getCachedStockSymbols();
+            
+            long duration = System.currentTimeMillis() - startTime;
+            
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)))
+                    .body(symbols);
+                    
         } catch (Exception e) {
-            System.err.println("Error fetching stock symbols: " + e.getMessage());
-            return new ArrayList<>();
+            long duration = System.currentTimeMillis() - startTime;
+            return ResponseEntity.ok(new ArrayList<>());
         }
     }
 

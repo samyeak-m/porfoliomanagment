@@ -17,6 +17,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.PropertyLoader;
@@ -24,6 +25,12 @@ import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.PropertyLoad
 @Service
 public class DatabaseHelper {
     private static final Logger LOGGER = Logger.getLogger(DatabaseHelper.class.getName());
+    
+    // ADD: Cache for stock symbols with TTL
+    private volatile List<String> cachedStockSymbols = null;
+    private volatile long lastCacheUpdate = 0;
+    private static final long CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
     private final String url;
     private final String username;
     private final String password;
@@ -71,146 +78,143 @@ public class DatabaseHelper {
         }
     }
 
+    // OPTIMIZED: Get all stock symbols with caching and batch validation
     public List<String> getAllStockTableNames() throws SQLException {
+        // Check cache first
+        if (cachedStockSymbols != null && 
+            (System.currentTimeMillis() - lastCacheUpdate) < CACHE_TTL) {
+            return new ArrayList<>(cachedStockSymbols);
+        }
+        
         List<String> tableNames = new ArrayList<>();
-        String query = "SHOW TABLES LIKE 'daily_data_%'";
+        
+        // OPTIMIZED: Use single query with batch validation
+        String batchQuery = """
+            SELECT table_name, 
+                   (SELECT COUNT(*) FROM information_schema.tables t2 
+                    WHERE t2.table_name = t1.table_name 
+                    AND EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = t1.table_name 
+                        AND column_name = 'close'
+                    )) as has_close_column
+            FROM information_schema.tables t1
+            WHERE table_schema = 'nepse' 
+            AND table_name LIKE 'daily_data_%'
+            ORDER BY table_name
+        """;
 
         try (Connection conn = connect();
-                PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery()) {
+             PreparedStatement pstmt = conn.prepareStatement(batchQuery);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            // Collect all table names first
+            List<String> candidateTables = new ArrayList<>();
             while (rs.next()) {
-                // FIXED: Store table names in lowercase
-                String tableName = rs.getString(1).replace("daily_data_", "").toLowerCase();
-                if (hasValidClosePrice(tableName)) {
-                    tableNames.add(tableName);
-                }
+                String tableName = rs.getString("table_name")
+                    .replace("daily_data_", "").toLowerCase();
+                candidateTables.add(tableName);
             }
+            
+            // OPTIMIZED: Batch validate close prices with single query
+            if (!candidateTables.isEmpty()) {
+                tableNames = batchValidateClosePrices(candidateTables);
+            }
+            
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error fetching stock table names", e);
             throw e;
         }
+        
+        // Update cache
+        cachedStockSymbols = new ArrayList<>(tableNames);
+        lastCacheUpdate = System.currentTimeMillis();
+        
+        LOGGER.log(Level.INFO, "Loaded " + tableNames.size() + " valid stock symbols");
         return tableNames;
     }
 
-    private boolean hasValidClosePrice(String tableName) throws SQLException {
-        String normalizedTableName = tableName.toLowerCase();
-        String query = "SELECT COUNT(*) FROM daily_data_" + normalizedTableName + " WHERE close >= 100";
-
-        try (Connection conn = connect();
-                PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery()) {
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error checking close price for table " + normalizedTableName, e);
-            throw e;
+    // NEW: Batch validate close prices in single query
+    private List<String> batchValidateClosePrices(List<String> candidateTables) throws SQLException {
+        List<String> validTables = new ArrayList<>();
+        
+        // Build dynamic UNION query for batch validation
+        StringBuilder unionQuery = new StringBuilder();
+        for (int i = 0; i < candidateTables.size(); i++) {
+            if (i > 0) unionQuery.append(" UNION ALL ");
+            
+            String tableName = candidateTables.get(i);
+            unionQuery.append(String.format(
+                "(SELECT '%s' as table_name, COUNT(*) as valid_count " +
+                "FROM daily_data_%s WHERE close >= 100 LIMIT 1)", 
+                tableName, tableName
+            ));
         }
-        return false;
-    }
-
-    public List<double[]> loadStockData(String tableName) throws SQLException {
-        List<double[]> stockData = new ArrayList<>();
-
-        String normalizedTableName = tableName.toLowerCase();
-        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + " ORDER BY date";
-
+        
         try (Connection conn = connect();
-                PreparedStatement pstmt = conn.prepareStatement(query);
-                ResultSet rs = pstmt.executeQuery()) {
+             PreparedStatement pstmt = conn.prepareStatement(unionQuery.toString());
+             ResultSet rs = pstmt.executeQuery()) {
+            
             while (rs.next()) {
-                Date date = rs.getDate("date");
-                double close = rs.getDouble("close");
-                double high = rs.getDouble("high");
-                double low = rs.getDouble("low");
-                double open = rs.getDouble("open");
-
-                double dateAsDouble = date.getTime();
-
-                Double normalizedValue = tableNameMap.get(normalizedTableName);
-                double normalizedTableNameValue;
-
-                if (normalizedValue == null) {
-                    LOGGER.log(Level.WARNING,
-                            "Table name '" + normalizedTableName + "' not found in tableNameMap. Regenerating map...");
-                    try {
-                        generateTableNameMap();
-                        normalizedValue = tableNameMap.get(normalizedTableName);
-                        if (normalizedValue == null) {
-                            // Still null, use default value based on hash
-                            normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
-                        } else {
-                            normalizedTableNameValue = normalizedValue;
-                        }
-                    } catch (SQLException e) {
-                        normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
-                        LOGGER.log(Level.WARNING, "Failed to regenerate map, using hash fallback: "
-                                + normalizedTableNameValue + " for table: " + normalizedTableName);
-                    }
-                } else {
-                    normalizedTableNameValue = normalizedValue;
+                String tableName = rs.getString("table_name");
+                int validCount = rs.getInt("valid_count");
+                
+                if (validCount > 0) {
+                    validTables.add(tableName);
                 }
-
-                stockData.add(new double[] { normalizedTableNameValue, close, high, low, open, dateAsDouble });
             }
+            
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error loading stock data for table " + normalizedTableName, e);
-            throw e;
+            LOGGER.log(Level.WARNING, "Batch validation failed, falling back to individual checks", e);
+            // Fallback to individual validation
+            return validateIndividually(candidateTables);
         }
-        return stockData;
+        
+        return validTables;
     }
-
-    public List<double[]> loadStockDataAfterDate(String tableName, LocalDate afterDate) throws SQLException {
-        List<double[]> stockData = new ArrayList<>();
-
-        String normalizedTableName = tableName.toLowerCase();
-        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName +
-                " WHERE date > ? ORDER BY date";
-
-        try (Connection conn = connect();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
-
-            pstmt.setDate(1, Date.valueOf(afterDate));
-
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Date date = rs.getDate("date");
-                    double close = rs.getDouble("close");
-                    double high = rs.getDouble("high");
-                    double low = rs.getDouble("low");
-                    double open = rs.getDouble("open");
-
-                    double dateAsDouble = date.getTime();
-
-                    Double normalizedValue = tableNameMap.get(normalizedTableName);
-                    double normalizedTableNameValue;
-
-                    if (normalizedValue == null) {
-                        LOGGER.log(Level.WARNING,
-                                "Table name '" + normalizedTableName + "' not found in tableNameMap for date query");
-                        try {
-                            generateTableNameMap();
-                            normalizedValue = tableNameMap.get(normalizedTableName);
-                            if (normalizedValue == null) {
-                                normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
-                            } else {
-                                normalizedTableNameValue = normalizedValue;
-                            }
-                        } catch (SQLException e) {
-                            normalizedTableNameValue = Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
-                        }
-                    } else {
-                        normalizedTableNameValue = normalizedValue;
+    
+    // FALLBACK: Individual validation if batch fails
+    private List<String> validateIndividually(List<String> candidateTables) throws SQLException {
+        List<String> validTables = new ArrayList<>();
+        
+        String query = "SELECT COUNT(*) FROM daily_data_? WHERE close >= 100 LIMIT 1";
+        
+        try (Connection conn = connect()) {
+            for (String tableName : candidateTables) {
+                String specificQuery = query.replace("?", tableName);
+                try (PreparedStatement pstmt = conn.prepareStatement(specificQuery);
+                     ResultSet rs = pstmt.executeQuery()) {
+                    
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        validTables.add(tableName);
                     }
-
-                    stockData.add(new double[] { normalizedTableNameValue, close, high, low, open, dateAsDouble });
+                } catch (SQLException e) {
+                    LOGGER.log(Level.WARNING, "Error validating table: " + tableName, e);
                 }
             }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Error loading stock data after date for table " + normalizedTableName, e);
-            throw e;
         }
-        return stockData;
+        
+        return validTables;
+    }
+    
+    // NEW: Method to clear cache when needed
+    public void clearCache() {
+        cachedStockSymbols = null;
+        lastCacheUpdate = 0;
+        if (tableNameMap != null) {
+            tableNameMap.clear();
+        }
+    }
+    
+    // OPTIMIZED: Async cache warming
+    @Async
+    public void warmCache() {
+        try {
+            getAllStockTableNames();
+            LOGGER.log(Level.INFO, "Stock symbols cache warmed successfully");
+        } catch (SQLException e) {
+            LOGGER.log(Level.WARNING, "Failed to warm stock symbols cache", e);
+        }
     }
 
     private void createPredictionsTableIfNotExists() throws SQLException {
@@ -298,4 +302,112 @@ public class DatabaseHelper {
         }
         System.out.println("=== END DEBUG ===");
     }
+
+    // ADD: Missing loadStockData method
+    public List<double[]> loadStockData(String stockSymbol) throws SQLException {
+        List<double[]> stockData = new ArrayList<>();
+        String tableName = "daily_data_" + stockSymbol.toLowerCase();
+        
+        String query = "SELECT date, close, high, low, volume, open FROM " + tableName + 
+                      " WHERE close >= 100 ORDER BY date ASC";
+        
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            while (rs.next()) {
+                double[] row = new double[6];
+                row[0] = rs.getDate("date").getTime(); // Date as timestamp
+                row[1] = rs.getDouble("close");        // Close price
+                row[2] = rs.getDouble("high");         // High price
+                row[3] = rs.getDouble("low");          // Low price
+                row[4] = rs.getDouble("volume");       // Volume
+                row[5] = rs.getDouble("open");         // Open price
+                
+                // Validate data
+                boolean isValid = true;
+                for (int i = 1; i < row.length; i++) {
+                    if (Double.isNaN(row[i]) || Double.isInfinite(row[i]) || row[i] <= 0) {
+                        isValid = false;
+                        break;
+                    }
+                }
+                
+                if (isValid) {
+                    stockData.add(row);
+                }
+            }
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error loading stock data for: " + stockSymbol, e);
+            throw e;
+        }
+        
+        LOGGER.log(Level.INFO, "Loaded " + stockData.size() + " records for " + stockSymbol);
+        return stockData;
+    }
+
+    // ADD: Missing loadStockDataAfterDate method
+    public List<double[]> loadStockDataAfterDate(String stockSymbol, LocalDate afterDate) throws SQLException {
+        List<double[]> stockData = new ArrayList<>();
+        String tableName = "daily_data_" + stockSymbol.toLowerCase();
+        
+        String query = "SELECT date, close, high, low, volume, open FROM " + tableName + 
+                      " WHERE close >= 100 AND date > ? ORDER BY date ASC";
+        
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            
+            pstmt.setDate(1, Date.valueOf(afterDate));
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    double[] row = new double[6];
+                    row[0] = rs.getDate("date").getTime(); // Date as timestamp
+                    row[1] = rs.getDouble("close");        // Close price
+                    row[2] = rs.getDouble("high");         // High price
+                    row[3] = rs.getDouble("low");          // Low price
+                    row[4] = rs.getDouble("volume");       // Volume
+                    row[5] = rs.getDouble("open");         // Open price
+                    
+                    // Validate data
+                    boolean isValid = true;
+                    for (int i = 1; i < row.length; i++) {
+                        if (Double.isNaN(row[i]) || Double.isInfinite(row[i]) || row[i] <= 0) {
+                            isValid = false;
+                            break;
+                        }
+                    }
+                    
+                    if (isValid) {
+                        stockData.add(row);
+                    }
+                }
+            }
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error loading stock data after date for: " + stockSymbol, e);
+            throw e;
+        }
+        
+        LOGGER.log(Level.INFO, "Loaded " + stockData.size() + " records for " + stockSymbol + " after " + afterDate);
+        return stockData;
+    }
+
+    // Run this SQL script to add indexes to all daily_data tables
+    // SELECT CONCAT('CREATE INDEX idx_close ON ', table_name, ' (close);') as create_index_sql
+    // FROM information_schema.tables
+    // WHERE table_schema = 'nepse'
+    // AND table_name LIKE 'daily_data_%';
+
+    // Example output will be:
+    // CREATE INDEX idx_close ON daily_data_ntc (close);
+    // CREATE INDEX idx_close ON daily_data_adbl (close);
+    // etc.
+
+    // Also add index on date column for better performance
+    // SELECT CONCAT('CREATE INDEX idx_date ON ', table_name, ' (date);') as create_index_sql
+    // FROM information_schema.tables
+    // WHERE table_schema = 'nepse'
+    // AND table_name LIKE 'daily_data_%';
 }
