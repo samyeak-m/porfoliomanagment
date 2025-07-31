@@ -63,17 +63,48 @@
 }
 
 .card-header {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: white;
   padding: 2rem;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.card-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.25) 45%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.25) 55%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+  animation: glassReflection 5s ease-in-out infinite;
+  pointer-events: none;
+  transform: skewX(-25deg);
+  filter: blur(0.5px);
 }
 
 .card-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0;
+  color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
@@ -95,8 +126,8 @@
   font-size: 1rem;
 }
 
-input[type="text"], 
-input[type="number"], 
+input[type="text"],
+input[type="number"],
 select {
   width: 100%;
   padding: 1rem 1.5rem;
@@ -110,16 +141,16 @@ select {
   transition: border-color 0.15s ease;
 }
 
-input[type="text"]:focus, 
-input[type="number"]:focus, 
+input[type="text"]:focus,
+input[type="number"]:focus,
 select:focus {
   outline: none;
   border-color: rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.2);
 }
 
-input[type="text"]:hover, 
-input[type="number"]:hover, 
+input[type="text"]:hover,
+input[type="number"]:hover,
 select:hover {
   border-color: rgba(255, 255, 255, 0.3);
 }
@@ -145,10 +176,6 @@ input::placeholder {
 }
 
 .stock-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -156,7 +183,7 @@ input::placeholder {
   border-radius: 12px;
   max-height: 250px;
   overflow-y: auto;
-  z-index: 1001;
+  z-index: 10;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   margin: 0;
 }
@@ -232,32 +259,134 @@ input::placeholder {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .results-header {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   color: white;
   padding: 1.5rem 2rem;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.results-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.25) 45%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.25) 55%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+  animation: glassReflection 5s ease-in-out infinite 1s; /* Offset by 1s for variety */
+  pointer-events: none;
+  transform: skewX(-25deg);
+  filter: blur(0.5px);
 }
 
 .results-header h3 {
   font-size: 1.4rem;
   font-weight: 600;
   margin: 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  position: relative;
+  z-index: 1;
 }
 
-.results-body {
-  padding: 2rem;
-  background: rgba(255, 255, 255, 0.05);
+/* Optional: Add hover effect for card headers */
+.card-header:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.results-header:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+/* For VaR calculation page - update var form headers */
+.var-form {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add reflection to var form as well */
+.var-form::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 25%,
+    rgba(255, 255, 255, 0.25) 45%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.25) 55%,
+    rgba(255, 255, 255, 0.08) 75%,
+    transparent 100%
+  );
+  animation: glassReflection 5s ease-in-out infinite 2s; /* Offset by 2s */
+  pointer-events: none;
+  transform: skewX(-25deg);
+  filter: blur(0.5px);
+  z-index: 0;
+}
+
+/* Ensure form content stays above the reflection */
+.var-form > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Simplified Button */
-.predict-btn, button {
+.predict-btn,
+button {
   width: 100%;
   background: rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.95);
@@ -279,18 +408,21 @@ input::placeholder {
   transition: all 0.15s ease;
 }
 
-.predict-btn:hover:not(:disabled), button:hover:not(:disabled) {
+.predict-btn:hover:not(:disabled),
+button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.25);
   border-color: rgba(255, 255, 255, 0.35);
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-.predict-btn:active, button:active {
+.predict-btn:active,
+button:active {
   transform: translateY(0);
 }
 
-.predict-btn:disabled, button:disabled {
+.predict-btn:disabled,
+button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
@@ -363,8 +495,12 @@ input::placeholder {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Simplified scrollbar */
@@ -420,9 +556,15 @@ input::placeholder {
   color: rgba(255, 255, 255, 0.9);
 }
 
-.risk-low { color: #22c55e; }
-.risk-medium { color: #f59e0b; }
-.risk-high { color: #ef4444; }
+.risk-low {
+  color: #22c55e;
+}
+.risk-medium {
+  color: #f59e0b;
+}
+.risk-high {
+  color: #ef4444;
+}
 
 .risk-badge {
   padding: 0.25rem 0.5rem;
@@ -550,38 +692,38 @@ input::placeholder {
     padding: 1rem;
     margin-top: 80px;
   }
-  
+
   .page-banner {
     padding: 2rem 1.5rem;
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
   }
-  
+
   .page-banner h1 {
     font-size: 2rem;
   }
-  
+
   .page-banner p {
     font-size: 1rem;
   }
-  
+
   .card-body {
     padding: 1.5rem;
   }
-  
+
   .result-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .var-summary {
     grid-template-columns: 1fr;
   }
-  
+
   .gauge-container {
     width: 150px;
     height: 75px;
   }
-  
+
   .gauge-labels {
     width: 150px;
   }

@@ -88,30 +88,6 @@ body {
   position: relative;
 }
 
-/* Animated background bubbles for liquid effect */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(120, 200, 255, 0.3) 0%, transparent 50%);
-  animation: liquidMove 20s ease-in-out infinite;
-  pointer-events: none;
-  z-index: -1;
-}
-
-@keyframes liquidMove {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  33% { transform: translateY(-20px) rotate(120deg); }
-  66% { transform: translateY(20px) rotate(240deg); }
-}
-
-/* Liquid Glass Header */
 .header {
     position: fixed;
     top: 0;
@@ -135,20 +111,44 @@ body::before {
     content: '';
     position: absolute;
     top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, 
-        rgba(255, 255, 255, 0.1) 0%, 
-        rgba(255, 255, 255, 0.05) 50%, 
-        rgba(255, 255, 255, 0.1) 100%);
-    animation: liquidShimmer 8s ease-in-out infinite;
+    left: -60%;
+    width: 25%;
+    height: 100%;
+    background: linear-gradient(
+        120deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0.08) 25%, 
+        rgba(255, 255, 255, 0.25) 45%, 
+        rgba(255, 255, 255, 0.4) 50%, 
+        rgba(255, 255, 255, 0.25) 55%, 
+        rgba(255, 255, 255, 0.08) 75%, 
+        transparent 100%
+    );
+    animation: glassReflection 5s ease-in-out infinite;
     pointer-events: none;
+    transform: skewX(-25deg);
+    filter: blur(0.5px);
 }
 
-@keyframes liquidShimmer {
-    0%, 100% { transform: translateX(-100%) skewX(-15deg); }
-    50% { transform: translateX(100%) skewX(-15deg); }
+@keyframes glassReflection {
+    0% { 
+        left: -60%;
+        opacity: 0;
+        transform: skewX(-25deg) scale(0.8);
+    }
+    8% { 
+        opacity: 1;
+        transform: skewX(-25deg) scale(1);
+    }
+    92% { 
+        opacity: 1;
+        transform: skewX(-25deg) scale(1);
+    }
+    100% { 
+        left: 110%;
+        opacity: 0;
+        transform: skewX(-25deg) scale(0.8);
+    }
 }
 
 .header-con {
@@ -486,6 +486,288 @@ input::placeholder {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Professional Navigation Icons with Premium Glass Effect */
+.nav-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  position: relative;
+  vertical-align: middle;
+}
+
+/* Dashboard Icon - Premium Analytics Grid */
+.dashboard-icon {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.9) 0%, 
+    rgba(255, 255, 255, 0.7) 100%);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-icon::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 5px;
+  height: 5px;
+  background: #1e40af;
+  border-radius: 1px;
+  box-shadow: 
+    8px 0 0 #3b82f6,
+    0 8px 0 #10b981,
+    8px 8px 0 #f59e0b;
+}
+
+.dashboard-icon::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 14px;
+  background: linear-gradient(to top, 
+    #1e40af 0%, 
+    #3b82f6 50%, 
+    #10b981 100%);
+  border-radius: 1px;
+}
+
+/* AI Analysis Icon - Neural Network */
+.ai-icon {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.2) 0%, 
+    rgba(16, 185, 129, 0.2) 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.ai-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: #3b82f6;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 
+    -8px -6px 0 -3px #10b981,
+    8px -6px 0 -3px #10b981,
+    -8px 6px 0 -3px #f59e0b,
+    8px 6px 0 -3px #f59e0b;
+}
+
+.ai-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%) rotate(45deg);
+  box-shadow: 
+    0 0 0 0 rgba(255, 255, 255, 0.6),
+    -6px -6px 0 0 rgba(255, 255, 255, 0.4),
+    6px 6px 0 0 rgba(255, 255, 255, 0.4);
+}
+
+/* AI Training Icon - Premium Gear */
+.training-icon {
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.3) 0%, 
+    rgba(59, 130, 246, 0.3) 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.training-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: #8b5cf6;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  clip-path: polygon(
+    50% 0%, 65% 15%, 85% 15%, 70% 35%, 85% 55%, 65% 55%, 
+    50% 70%, 35% 55%, 15% 55%, 30% 35%, 15% 15%, 35% 15%
+  );
+}
+
+.training-icon::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px rgba(139, 92, 246, 0.8);
+}
+
+/* Risk Analysis Icon - Premium Shield */
+.risk-icon {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.2) 0%, 
+    rgba(245, 158, 11, 0.2) 100%);
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.risk-icon::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 14px solid #ef4444;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 4px rgba(239, 68, 68, 0.3));
+}
+
+.risk-icon::after {
+  content: '!';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -30%);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+/* Enhanced hover effects */
+.nav-links a:hover .nav-icon {
+  transform: translateY(-1px) scale(1.1);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.nav-links a:hover .dashboard-icon {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 1) 0%, 
+    rgba(255, 255, 255, 0.9) 100%);
+  box-shadow: 
+    0 4px 12px rgba(30, 64, 175, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.nav-links a:hover .ai-icon {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.4) 0%, 
+    rgba(16, 185, 129, 0.4) 100%);
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: 
+    0 4px 12px rgba(59, 130, 246, 0.4),
+    0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.nav-links a:hover .training-icon {
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.5) 0%, 
+    rgba(59, 130, 246, 0.5) 100%);
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: 
+    0 4px 12px rgba(139, 92, 246, 0.4),
+    0 0 8px rgba(139, 92, 246, 0.5);
+}
+
+.nav-links a:hover .risk-icon {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.4) 0%, 
+    rgba(245, 158, 11, 0.4) 100%);
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: 
+    0 4px 12px rgba(239, 68, 68, 0.4),
+    0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Active state effects */
+.nav-links a.active .nav-icon {
+  transform: scale(1.05);
+  filter: brightness(1.2);
+}
+
+.nav-links a.active .dashboard-icon {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 1) 0%, 
+    rgba(30, 64, 175, 0.1) 100%);
+  box-shadow: 
+    0 6px 15px rgba(30, 64, 175, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.8);
+}
+
+.nav-links a.active .ai-icon {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.3) 0%, 
+    rgba(16, 185, 129, 0.3) 100%);
+  animation: aiPulse 2s ease-in-out infinite;
+}
+
+.nav-links a.active .training-icon {
+  background: linear-gradient(135deg, 
+    rgba(139, 92, 246, 0.4) 0%, 
+    rgba(59, 130, 246, 0.4) 100%);
+  animation: gearRotate 3s linear infinite;
+}
+
+.nav-links a.active .risk-icon {
+  background: linear-gradient(135deg, 
+    rgba(239, 68, 68, 0.3) 0%, 
+    rgba(245, 158, 11, 0.3) 100%);
+  animation: warningPulse 1.5s ease-in-out infinite;
+}
+
+/* Sophisticated animations */
+@keyframes aiPulse {
+  0%, 100% { 
+    box-shadow: 
+      0 4px 12px rgba(59, 130, 246, 0.3),
+      0 0 8px rgba(16, 185, 129, 0.2);
+  }
+  50% { 
+    box-shadow: 
+      0 6px 18px rgba(59, 130, 246, 0.5),
+      0 0 12px rgba(16, 185, 129, 0.4);
+  }
+}
+
+@keyframes gearRotate {
+  0% { transform: translateY(-1px) scale(1.05) rotate(0deg); }
+  100% { transform: translateY(-1px) scale(1.05) rotate(360deg); }
+}
+
+@keyframes warningPulse {
+  0%, 100% { 
+    box-shadow: 
+      0 4px 12px rgba(239, 68, 68, 0.3),
+      0 0 8px rgba(245, 158, 11, 0.2);
+  }
+  50% { 
+    box-shadow: 
+      0 6px 18px rgba(239, 68, 68, 0.5),
+      0 0 12px rgba(245, 158, 11, 0.4);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .header-con {
@@ -568,4 +850,13 @@ input::placeholder {
 
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
+}
+
+/* Remove animations on reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .nav-links a.active .ai-icon,
+  .nav-links a.active .training-icon,
+  .nav-links a.active .risk-icon {
+    animation: none;
+  }
 }

@@ -167,7 +167,6 @@ class StockDropdown {
     if (this.dropdownContainer.children.length > 0) {
       this.dropdownContainer.style.display = "block";
 
-      // Get the actual position of the input field relative to the viewport
       const inputRect = this.stockInput.getBoundingClientRect();
       const containerRect = document
         .getElementById("stockDropdown")
@@ -175,14 +174,7 @@ class StockDropdown {
 
       // Position dropdown outside the container using fixed positioning
       this.dropdownContainer.style.position = "fixed";
-      this.dropdownContainer.style.top = inputRect.bottom + 4 + "px";
-      this.dropdownContainer.style.left = inputRect.left + "px";
       this.dropdownContainer.style.width = inputRect.width + "px";
-      this.dropdownContainer.style.zIndex = "9999";
-
-      // Remove any previous positioning styles
-      this.dropdownContainer.style.bottom = "auto";
-      this.dropdownContainer.style.right = "auto";
 
       // Check if dropdown would go below viewport
       const viewportHeight = window.innerHeight;
@@ -199,13 +191,6 @@ class StockDropdown {
   hideDropdown() {
     this.dropdownContainer.style.display = "none";
     this.selectedIndex = -1;
-
-    // Reset positioning to original state
-    this.dropdownContainer.style.position = "absolute";
-    this.dropdownContainer.style.top = "calc(100% + 4px)";
-    this.dropdownContainer.style.left = "0";
-    this.dropdownContainer.style.width = "100%";
-    this.dropdownContainer.style.zIndex = "1001";
   }
 }
 
