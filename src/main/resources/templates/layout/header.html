@@ -3,12 +3,51 @@
     <div class="header-con">
         <div class="logo">
             <a th:href="@{/}">
-                <img src="/image/logo.png" alt="Logo" class="logo-img">
+                <!-- Use the actual logo.png file instead of CSS-generated logo -->
+                <img src="/image/logo.png" alt="Portfolio Logo" class="logo-img">
             </a>
+            <div class="logo-text">
+                <h1 class="logo-title">StockFlow</h1>
+                <p class="logo-subtitle">Portfolio Analytics</p>
+            </div>
         </div>
-        <nav class="nav-links">
-                <a th:href="@{/}">Home</a>
-                <a th:href="@{/lstm/predict}">Stock Analysis</a>
+        
+        <nav class="nav-links" id="navLinks">
+            <a th:href="@{/}" th:classappend="${currentURI == '/' ? 'active' : ''}">
+                <span class="nav-icon dashboard-icon"></span>Dashboard
+            </a>
+            <a th:href="@{/lstm/predict}" th:classappend="${#strings.contains(currentURI, '/lstm/predict') ? 'active' : ''}">
+                <span class="nav-icon ai-icon"></span>AI Analysis
+            </a>
+            <a th:href="@{/lstm/train}" th:classappend="${#strings.contains(currentURI, '/lstm/train') ? 'active' : ''}">
+                <span class="nav-icon training-icon"></span>AI Training
+            </a>
+            <a th:href="@{/var}" th:classappend="${#strings.contains(currentURI, '/var') ? 'active' : ''}">
+                <span class="nav-icon risk-icon"></span>Risk Analysis
+            </a>
         </nav>
+        
+        <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
     </div>
+    
+    <script>
+        function toggleMobileMenu() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('active');
+        }
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const navLinks = document.getElementById('navLinks');
+            const mobileBtn = document.getElementById('mobileMenuBtn');
+            
+            if (!navLinks.contains(e.target) && !mobileBtn.contains(e.target)) {
+                navLinks.classList.remove('active');
+            }
+        });
+    </script>
 </header>

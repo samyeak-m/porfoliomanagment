@@ -6,14 +6,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpSession;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,6 +24,9 @@ import com.stockmanagment.porfoliomanagment.service.nepse.DailyDataService;
 import com.stockmanagment.porfoliomanagment.service.nepse.PredictionsService;
 import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
 import com.stockmanagment.porfoliomanagment.service.portfolio.UserDetailService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
 @Controller
 public class HomeController {
@@ -239,5 +241,10 @@ public class HomeController {
     @GetMapping("/lstm/train")
     public String showTrainPage() {
         return "lstm/lstmtrain";
+    }
+
+    @ModelAttribute("currentURI")
+    public String getCurrentURI(HttpServletRequest request) {
+        return request.getRequestURI();
     }
 }
