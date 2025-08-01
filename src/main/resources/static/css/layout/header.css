@@ -1,3 +1,6 @@
+*::-webkit-scrollbar {
+    display: none;
+}
 :root {
   --royal-navy: #1e3a8a;
   --royal-blue: #3b82f6;
@@ -415,7 +418,7 @@ input::placeholder {
 }
 
 /* Liquid Glass Button */
-.predict-btn, button {
+.predict-btn, button, .var-btn {
   width: 100%;
   background: linear-gradient(135deg, 
     rgba(255, 255, 255, 0.25) 0%, 
@@ -821,42 +824,5 @@ input::placeholder {
   .logo-img {
     width: 40px;
     height: 40px;
-  }
-}
-
-/* Enhanced scrollbar with glass effect */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
-}
-
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-*::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  backdrop-filter: blur(10px);
-}
-
-*::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
-}
-
-/* Remove animations on reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .nav-links a.active .ai-icon,
-  .nav-links a.active .training-icon,
-  .nav-links a.active .risk-icon {
-    animation: none;
   }
 }

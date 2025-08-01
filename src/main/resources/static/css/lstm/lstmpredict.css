@@ -168,24 +168,24 @@ input::placeholder {
   font-style: italic;
 }
 
-/* Simplified Stock Dropdown */
+/* Enhanced Stock Dropdown for LSTM Predict */
 .stock-input-container {
   position: relative;
   width: 100%;
-  z-index: 1;
+  z-index: 1000;
 }
 
 .stock-dropdown {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   max-height: 250px;
   overflow-y: auto;
-  z-index: 10;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  margin: 0;
+  z-index: 1000;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  margin-top: 4px;
 }
 
 .dropdown-item {
@@ -194,16 +194,18 @@ input::placeholder {
   align-items: center;
   gap: 1rem;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   background: transparent;
-  color: rgba(255, 255, 255, 0.9);
-  transition: background-color 0.1s ease;
+  color: rgba(0, 0, 0, 0.9);
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .dropdown-item:hover,
 .dropdown-item.selected {
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 1);
+  background: rgba(245, 158, 11, 0.15);
+  color: rgba(0, 0, 0, 1);
+  transform: translateX(4px);
 }
 
 .dropdown-item:last-child {
@@ -218,8 +220,10 @@ input::placeholder {
 .stock-icon {
   width: 40px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, 
+    rgba(245, 158, 11, 0.8) 0%,
+    rgba(239, 68, 68, 0.8) 100%);
+  color: white;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -227,13 +231,16 @@ input::placeholder {
   font-weight: 700;
   font-size: 0.85rem;
   text-transform: uppercase;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .stock-symbol {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.9);
   font-size: 1.05rem;
+  text-shadow: none;
+  letter-spacing: 0.5px;
 }
 
 /* Simplified Results Section */
@@ -301,7 +308,6 @@ input::placeholder {
     rgba(255, 255, 255, 0.08) 75%,
     transparent 100%
   );
-  animation: glassReflection 5s ease-in-out infinite 1s; /* Offset by 1s for variety */
   pointer-events: none;
   transform: skewX(-25deg);
   filter: blur(0.5px);
@@ -310,20 +316,9 @@ input::placeholder {
 .results-header h3 {
   font-size: 1.4rem;
   font-weight: 600;
-  margin: 0;
+  color : rgba(255, 255, 255, 0.95);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(255, 255, 255, 0.7) 50%,
-    rgba(255, 255, 255, 0.9) 100%
-  );
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-  position: relative;
-  z-index: 1;
 }
 
 /* Optional: Add hover effect for card headers */
@@ -382,30 +377,6 @@ input::placeholder {
 .var-form > * {
   position: relative;
   z-index: 1;
-}
-
-/* Simplified Button */
-.predict-btn,
-button {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  padding: 1.2rem 2rem;
-  border-radius: 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  transition: all 0.15s ease;
 }
 
 .predict-btn:hover:not(:disabled),
@@ -726,42 +697,5 @@ button:disabled {
 
   .gauge-labels {
     width: 150px;
-  }
-}
-
-/* Remove all heavy blur effects and animations for maximum performance */
-@media (max-width: 480px) {
-  .page-banner,
-  .prediction-card,
-  .stock-dropdown,
-  input,
-  select,
-  button {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-
-/* Disable all animations for reduced motion users */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Performance optimizations */
-* {
-  /* Minimal hardware acceleration */
-  will-change: auto;
-}
-
-/* Remove transform effects for better performance */
-@media (max-width: 768px) {
-  .prediction-card:hover,
-  .result-item:hover,
-  .predict-btn:hover {
-    transform: none;
   }
 }

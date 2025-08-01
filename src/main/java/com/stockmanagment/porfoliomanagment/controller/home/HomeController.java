@@ -110,17 +110,12 @@ public class HomeController {
                 double var = varCalculationService.calculateVaR(normalizedStockSymbol, days, confidenceLevel);
                 double initialStockPrice = varCalculationService.getInitialStockPrice(normalizedStockSymbol);
 
-                LocalDate today = LocalDate.now();
-                String cacheKey = normalizedStockSymbol + today;
-
-                double nextClosePrice = nextClosePriceCache.computeIfAbsent(cacheKey, key -> calculateNextClosePrice(normalizedStockSymbol, initialStockPrice));
-
+                // Removed LSTM prediction integration
                 double varPercentage = (var / initialStockPrice) * 100;
 
                 model.addAttribute("var", String.format("%.2f", var));
                 model.addAttribute("confidenceLevel", String.format("%.2f", confidenceLevel * 100));
                 model.addAttribute("initialStockPrice", String.format("%.2f", initialStockPrice));
-                model.addAttribute("nextClosePrice", String.format("%.2f", nextClosePrice));
                 model.addAttribute("varPercentage", String.format("%.2f", varPercentage));
                 model.addAttribute("stockSymbol", normalizedStockSymbol);
             } catch (RuntimeException e) {

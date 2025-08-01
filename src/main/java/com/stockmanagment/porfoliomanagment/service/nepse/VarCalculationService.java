@@ -41,9 +41,11 @@ public class VarCalculationService {
 
     @PostConstruct
     public void initialize() {
-        Map<String, Double> frontendInvestmentAmounts = new HashMap<>();
-        Map<String, Double> stockInvestmentMap = getStockInvestmentAmounts(frontendInvestmentAmounts);
+        Map<String, Double> frontendInvestmentAmounts = new HashMap<>(); // Initialize with actual data if available
+        Map<String, Double> stockInvestmentMap = getStockInvestmentAmounts(frontendInvestmentAmounts); // Pass the parameter
+        // Retrieve stocks and their investment amounts
 
+            // Filter stocks where (investment amount / stock price) <= (stock price * 30)
             List<String> eligibleStocks = stockInvestmentMap.entrySet().stream()
                     .filter(entry -> {
                         String stockSymbol = entry.getKey();
@@ -100,7 +102,7 @@ public class VarCalculationService {
 
     public List<Double> getClosePrices(String stockSymbol) {
         String tableName = "daily_data_" + stockSymbol.toLowerCase();
-        String query = "SELECT close FROM " + tableName + " ORDER BY date DESC";
+        String query = "SELECT close FROM " + tableName + " ORDER BY date ASC";
         return (List<Double>) entityManager.createNativeQuery(query)
                 .getResultList()
                 .stream()
@@ -209,6 +211,7 @@ public class VarCalculationService {
             if (stockPriceOpt.isPresent()) {
                 double stockPrice = stockPriceOpt.get();
 
+                // This is where the filtering logic is applied
                 if (investmentAmount / stockPrice <= stockPrice * 30) {
                     filteredStockInvestmentMap.put(stockSymbol, investmentAmount);
                 }
@@ -218,12 +221,13 @@ public class VarCalculationService {
         return filteredStockInvestmentMap;
     }
 
+    // New method to get initial stock price
     public double getInitialStockPrice(String stockSymbol) {
         List<Double> closePrices = getClosePrices(stockSymbol);
         if (closePrices.isEmpty()) {
             throw new RuntimeException("No closing prices available for the given stock symbol: " + stockSymbol);
         }
-        return closePrices.get(0);
+        return closePrices.get(0); // Assuming the first price is the initial stock price
     }
 
     public Map<String, Object> calculateMultipleVaRForAllStocks(Map<String, Double> stockAndDaysMap, double confidenceLevel) {
@@ -249,10 +253,10 @@ public class VarCalculationService {
 
     public Map<String, Object> calculateMultipleVaRBasedOnInvestmentCriteria(int daysOfInvestment, double defaultConfidenceLevel) {
         Map<String, Object> results = new HashMap<>();
-        List<String> eligibleStocks = getStocksBasedOnInvestmentCriteria();
+        List<String> eligibleStocks = getStocksBasedOnInvestmentCriteria();  // Get stocks that meet the investment criteria
 
         for (String stockSymbol : eligibleStocks) {
-            double confidenceLevel = calculateDynamicConfidenceLevel(stockSymbol);
+            double confidenceLevel = calculateDynamicConfidenceLevel(stockSymbol); // Calculate dynamic confidence level
             double var = calculateVaR(stockSymbol, daysOfInvestment, confidenceLevel);
             double initialPrice = getInitialStockPrice(stockSymbol);
 

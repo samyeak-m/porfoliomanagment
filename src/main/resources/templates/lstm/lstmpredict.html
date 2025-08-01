@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Stock Prediction - Portfolio Management</title>
     <link rel="stylesheet" href="/css/lstm/lstmpredict.css">
-    <link rel="stylesheet" href="/css/layout/header.css">
 </head>
 
 <body>
@@ -17,7 +16,7 @@
         <!-- Enhanced Page Banner -->
         <div class="page-banner">
             <h1>AI Stock Prediction</h1>
-            <p>Advanced LSTM neural network predictions for NEPSE stocks with comprehensive risk analysis</p>
+            <p>Advanced LSTM neural network predictions for NEPSE stocks</p>
         </div>
 
         <!-- Main Prediction Card -->
@@ -38,24 +37,8 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="periodValue">Investment Period</label>
-                        <div style="display: flex; gap: 12px;">
-                            <input type="number" id="periodValue" name="periodValue" min="1" required
-                                placeholder="Enter period" style="flex: 2;">
-                            <select id="periodUnit" name="periodUnit" style="flex: 1;">
-                                <option value="days">Days</option>
-                                <option value="weeks">Weeks</option>
-                                <option value="months">Months</option>
-                                <option value="years">Years</option>
-                            </select>
-                        </div>
-                        <small class="input-help">Specify your investment timeframe (e.g., 30 days, 6 months, 2 years)
-                        </small>
-                    </div>
-
                     <button type="submit" class="predict-btn" id="predictBtn">
-                        <span>Analyze Stock & Calculate Risk</span>
+                        <span>Analyze Stock</span>
                     </button>
                 </form>
             </div>

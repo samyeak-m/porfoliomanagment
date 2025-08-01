@@ -22,7 +22,6 @@ import com.stockmanagment.porfoliomanagment.dto.PredictionRequestDTO;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.LstmService;
 import com.stockmanagment.porfoliomanagment.service.StockSymbolCacheService;
-import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
 
 @RestController
 @RequestMapping("/api/lstm")
@@ -33,9 +32,6 @@ public class PredictionController {
 
     @Autowired
     private LstmConfig config;
-
-    @Autowired
-    private VarCalculationService varCalculationService;
     
     @Autowired
     private StockSymbolCacheService stockSymbolCacheService;
@@ -43,27 +39,10 @@ public class PredictionController {
     @PostMapping("/predict")
     public ResponseEntity<Map<String, Object>> predict(@RequestBody PredictionRequestDTO request) {
         try {
-            // Get LSTM prediction
+            // Get LSTM prediction only
             PredictionResponseDTO lstmPrediction = lstmService.predict(request.getStockSymbol());
 
-            // Get VaR parameters from request or use defaults
-            int daysOfInvestment = request.getDaysOfInvestment() != null ? request.getDaysOfInvestment() : 25;
-            String confidenceLevelStr = request.getConfidenceLevel();
-            double confidenceLevel;
-
-            if ("dynamic".equals(confidenceLevelStr)) {
-                confidenceLevel = varCalculationService.calculateDynamicConfidenceLevel(request.getStockSymbol());
-            } else {
-                confidenceLevel = Double.parseDouble(confidenceLevelStr != null ? confidenceLevelStr : "0.95");
-            }
-
-            // Calculate VaR
-            double varValue = varCalculationService.calculateVaR(request.getStockSymbol(), daysOfInvestment,
-                    confidenceLevel);
-            double initialPrice = varCalculationService.getInitialStockPrice(request.getStockSymbol());
-            double varPercentage = (varValue / initialPrice) * 100;
-
-            // Combine results
+            // Return only LSTM prediction data
             Map<String, Object> response = new HashMap<>();
             response.put("stockSymbol", lstmPrediction.getStockSymbol());
             response.put("prediction", lstmPrediction.getPrediction());
@@ -71,13 +50,6 @@ public class PredictionController {
             response.put("pointChange", lstmPrediction.getPointChange());
             response.put("priceChange", lstmPrediction.getPriceChange());
             response.put("predictionDate", lstmPrediction.getPredictionDate());
-
-            // Add VaR data
-            response.put("varValue", varValue);
-            response.put("varPercentage", varPercentage);
-            response.put("confidenceLevel", confidenceLevel * 100);
-            response.put("initialPrice", initialPrice);
-            response.put("daysOfInvestment", daysOfInvestment);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

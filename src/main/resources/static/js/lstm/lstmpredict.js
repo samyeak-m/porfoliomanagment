@@ -17,9 +17,6 @@ class StockDropdown {
       const response = await fetch("/api/lstm/stock-symbols");
       if (response.ok) {
         this.stockSymbols = await response.json();
-        console.log("Loaded stock symbols:", this.stockSymbols.length);
-      } else {
-        console.error("Failed to load stock symbols");
       }
     } catch (error) {
       console.error("Error loading stock symbols:", error);
@@ -35,7 +32,6 @@ class StockDropdown {
       }
     });
 
-    // Better blur handling
     this.stockInput.addEventListener("blur", (e) => {
       setTimeout(() => {
         const activeElement = document.activeElement;
@@ -48,7 +44,6 @@ class StockDropdown {
       }, 100);
     });
 
-    // Handle clicks outside
     document.addEventListener("click", (e) => {
       if (
         !this.stockInput.contains(e.target) &&
@@ -58,7 +53,6 @@ class StockDropdown {
       }
     });
 
-    // Handle window resize and scroll to reposition dropdown
     window.addEventListener("resize", () => {
       if (this.dropdownContainer.style.display === "block") {
         this.showDropdown();
@@ -81,7 +75,7 @@ class StockDropdown {
 
     const filteredSymbols = this.stockSymbols
       .filter((symbol) => symbol.toUpperCase().includes(query))
-      .slice(0, 10); // Limit to 10 results
+      .slice(0, 10);
 
     this.renderDropdown(filteredSymbols);
     this.selectedIndex = -1;
@@ -132,24 +126,14 @@ class StockDropdown {
       return;
     }
 
-    this.dropdownContainer.innerHTML = '';
-
-    if (symbols.length === 0) {
-        this.dropdownContainer.innerHTML = `
-            <div class="dropdown-no-results">
-                No stocks found matching your search
-            </div>
-        `;
-    } else {
-        this.dropdownContainer.innerHTML = symbols
-            .map(symbol => `
-                <div class="dropdown-item" onclick="stockDropdown.selectSymbol('${symbol}')" onmousedown="event.preventDefault()">
-                    <div class="stock-icon">${symbol.substring(0, 2)}</div>
-                    <span class="stock-symbol">${symbol}</span>
-                </div>
-            `)
-            .join('');
-    }
+    this.dropdownContainer.innerHTML = symbols
+      .map(symbol => `
+      <div class="dropdown-item" onclick="stockDropdown.selectSymbol('${symbol}')" onmousedown="event.preventDefault()">
+        <div class="stock-icon">${symbol.substring(0, 2)}</div>
+        <span class="stock-symbol">${symbol}</span>
+      </div>
+    `)
+      .join('');
 
     this.showDropdown();
   }
@@ -158,33 +142,15 @@ class StockDropdown {
     this.stockInput.value = symbol;
     this.hideDropdown();
     this.stockInput.focus();
-
-    // Trigger change event for any listeners
     this.stockInput.dispatchEvent(new Event("change"));
   }
 
   showDropdown() {
     if (this.dropdownContainer.children.length > 0) {
       this.dropdownContainer.style.display = "block";
-
       const inputRect = this.stockInput.getBoundingClientRect();
-      const containerRect = document
-        .getElementById("stockDropdown")
-        .getBoundingClientRect();
-
-      // Position dropdown outside the container using fixed positioning
       this.dropdownContainer.style.position = "fixed";
       this.dropdownContainer.style.width = inputRect.width + "px";
-
-      // Check if dropdown would go below viewport
-      const viewportHeight = window.innerHeight;
-      const dropdownHeight = 250;
-
-      if (inputRect.bottom + dropdownHeight > viewportHeight - 10) {
-        // Position above input if no space below
-        this.dropdownContainer.style.top =
-          inputRect.top - dropdownHeight - 4 + "px";
-      }
     }
   }
 
@@ -214,28 +180,8 @@ class CompactPredictionForm {
       .value.trim()
       .toUpperCase();
 
-    // Get period value and unit
-    const periodValue = parseInt(document.getElementById("periodValue").value);
-    const periodUnit = document.getElementById("periodUnit").value;
-
-    // Convert to days
-    let daysOfInvestment = periodValue;
-    if (periodUnit === "weeks") daysOfInvestment *= 7;
-    else if (periodUnit === "months") daysOfInvestment *= 30;
-    else if (periodUnit === "years") daysOfInvestment *= 365;
-
-    // Get other VaR config fields as needed
-    const confidenceLevel =
-      document.getElementById("confidenceLevel")?.value || "0.95";
-    const numSimulations =
-      parseInt(document.getElementById("numSimulations")?.value) || 10000;
-
     if (!stockSymbol) {
       this.showError("Please enter a stock symbol");
-      return;
-    }
-    if (daysOfInvestment < 1) {
-      this.showError("Investment period must be at least 1 day");
       return;
     }
 
@@ -243,10 +189,7 @@ class CompactPredictionForm {
 
     try {
       const requestData = {
-        stockSymbol: stockSymbol,
-        daysOfInvestment: daysOfInvestment,
-        confidenceLevel: confidenceLevel,
-        numSimulations: numSimulations,
+        stockSymbol: stockSymbol
       };
 
       const response = await fetch("/api/lstm/predict", {
@@ -272,23 +215,18 @@ class CompactPredictionForm {
     this.button.disabled = loading;
     this.button.innerHTML = loading
         ? '<div class="spinner"></div><span>Analyzing...</span>'
-        : '<span>Analyze Stock & Calculate Risk</span>';
+        : '<span>Analyze Stock</span>';
   }
 
   showResults(data) {
     const isPositive = data.pointChange > 0;
     const changeClass = isPositive ? "positive" : "negative";
 
-    // Determine risk level based on VaR percentage
-    const riskLevel = this.getRiskLevel(data.varPercentage);
-    const riskClass = this.getRiskClass(data.varPercentage);
-
     this.resultsDiv.innerHTML = `
             <div class="results-header">
-                <h3>${data.stockSymbol} Complete Analysis</h3>
+                <h3>${data.stockSymbol} Prediction</h3>
             </div>
             <div class="results-body">
-                <!-- LSTM Prediction Section -->
                 <div class="section-title">
                     AI Price Prediction
                 </div>
@@ -318,116 +256,11 @@ class CompactPredictionForm {
                         </div>
                     </div>
                 </div>
-
-                <!-- VaR Risk Analysis Section -->
-                <div class="var-results-section">
-                    <div class="section-title">
-                        Value at Risk (VaR) Analysis
-                    </div>
-                    
-                    <div class="var-summary">
-                        <div class="var-metric">
-                            <div class="var-metric-label">Value at Risk</div>
-                            <div class="var-metric-value ${riskClass}">NPR ${data.varValue.toFixed(2)}</div>
-                        </div>
-                        <div class="var-metric">
-                            <div class="var-metric-label">Risk Percentage</div>
-                            <div class="var-metric-value ${riskClass}">${data.varPercentage.toFixed(2)}%</div>
-                        </div>
-                        <div class="var-metric">
-                            <div class="var-metric-label">Confidence Level</div>
-                            <div class="var-metric-value">${data.confidenceLevel.toFixed(1)}%</div>
-                        </div>
-                        <div class="var-metric">
-                            <div class="var-metric-label">Risk Category</div>
-                            <div class="var-metric-value ${riskClass}">
-                                <span class="risk-badge ${riskClass}">${riskLevel}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Simple Risk Gauge -->
-                    <div class="risk-gauge">
-                        <div class="gauge-container">
-                            <div class="gauge-needle" style="transform: translateX(-50%) rotate(${this.calculateGaugeAngle(data.varPercentage)}deg)"></div>
-                        </div>
-                        
-                        <div class="gauge-labels">
-                            <div class="gauge-label low">Low<br>0-10%</div>
-                            <div class="gauge-label medium">Medium<br>10-20%</div>
-                            <div class="gauge-label high">High<br>20%+</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Investment Recommendation -->
-                <div class="recommendation-section">
-                    <div class="section-title">
-                        Investment Recommendation
-                    </div>
-                    <div class="recommendation-card ${riskClass}">
-                        ${this.getInvestmentRecommendation(data)}
-                    </div>
-                </div>
             </div>
         `;
 
     this.resultsDiv.style.display = "block";
     this.resultsDiv.scrollIntoView({ behavior: "smooth" });
-  }
-
-  calculateGaugeAngle(varPercentage) {
-    // Convert 0-30% risk to 0-180 degrees (semicircle)
-    const maxRisk = 30;
-    const normalizedRisk = Math.min(varPercentage, maxRisk) / maxRisk;
-    
-    // Map to -90 to +90 degrees (180 degree range)
-    // -90 = low risk (left), 0 = medium risk (center), +90 = high risk (right)
-    const angle = (normalizedRisk * 180) - 90;
-    
-    return angle;
-  }
-
-  getRiskLevel(varPercentage) {
-    if (varPercentage <= 5) return "Low Risk";
-    if (varPercentage <= 10) return "Medium Risk";
-    if (varPercentage <= 20) return "High Risk";
-    return "Very High Risk";
-  }
-
-  getRiskClass(varPercentage) {
-    if (varPercentage <= 5) return "risk-low";
-    if (varPercentage <= 10) return "risk-medium";
-    if (varPercentage <= 20) return "risk-high";
-    return "risk-high";
-  }
-
-  getInvestmentRecommendation(data) {
-    const riskPercentage = data.varPercentage;
-    const priceChange = data.priceChange;
-
-    let recommendation = "";
-
-    if (riskPercentage <= 5 && priceChange > 2) {
-      recommendation = "Strong Buy - Low risk with positive prediction";
-    } else if (riskPercentage <= 10 && priceChange > 0) {
-      recommendation = "Buy - Moderate risk with upward trend";
-    } else if (riskPercentage <= 10 && priceChange < 0) {
-      recommendation = "Hold - Moderate risk with downward prediction";
-    } else if (riskPercentage > 20) {
-      recommendation = "Avoid - High risk investment";
-    } else {
-      recommendation = "Caution - Analyze market conditions carefully";
-    }
-
-    return `
-            <div class="recommendation-content">
-                <span>${recommendation}</span>
-            </div>
-            <div class="recommendation-details">
-                <small>Based on ${data.confidenceLevel.toFixed(1)}% confidence level over ${data.daysOfInvestment || 25} days</small>
-            </div>
-        `;
   }
 
   showError(message) {

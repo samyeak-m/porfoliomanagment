@@ -308,7 +308,8 @@ public class DatabaseHelper {
         List<double[]> stockData = new ArrayList<>();
         String tableName = "daily_data_" + stockSymbol.toLowerCase();
         
-        String query = "SELECT date, close, high, low, volume, open FROM " + tableName + 
+        // FIX: Remove 'volume' from query
+        String query = "SELECT date, close, high, low, open FROM " + tableName + 
                       " WHERE close >= 100 ORDER BY date ASC";
         
         try (Connection conn = connect();
@@ -316,13 +317,12 @@ public class DatabaseHelper {
              ResultSet rs = pstmt.executeQuery()) {
             
             while (rs.next()) {
-                double[] row = new double[6];
+                double[] row = new double[5];
                 row[0] = rs.getDate("date").getTime(); // Date as timestamp
                 row[1] = rs.getDouble("close");        // Close price
                 row[2] = rs.getDouble("high");         // High price
                 row[3] = rs.getDouble("low");          // Low price
-                row[4] = rs.getDouble("volume");       // Volume
-                row[5] = rs.getDouble("open");         // Open price
+                row[4] = rs.getDouble("open");         // Open price
                 
                 // Validate data
                 boolean isValid = true;
