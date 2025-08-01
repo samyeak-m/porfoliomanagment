@@ -29,6 +29,8 @@ import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.CustomChartU
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.DataPreprocessor;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.TechnicalIndicators;
 
+import jakarta.annotation.PostConstruct;
+
 @Service
 public class LstmService {
     private static final Logger LOGGER = Logger.getLogger(LstmService.class.getName());
@@ -55,6 +57,11 @@ public class LstmService {
         this.config = config;
     }
     
+    @PostConstruct
+    public void init() {
+        lstm = LSTMNetwork.loadModel(config.getModelFilePath());
+    }
+
     public void train() {
         trainingStartTime = System.currentTimeMillis();
         
@@ -76,8 +83,6 @@ public class LstmService {
             
             // ADD: Check memory before loading data
             checkMemoryAndCleanup();
-            
-            lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             
             if (lstm == null) {
                 currentTrainingMessage = "Loading stock data from database...";
@@ -801,7 +806,6 @@ public class LstmService {
             // ADD: Check memory before prediction
             checkMemoryAndCleanup();
             
-            lstm = LSTMNetwork.loadModel(config.getModelFilePath());
             if (lstm == null) {
                 throw new RuntimeException("No trained model found. Please train the model first.");
             }
