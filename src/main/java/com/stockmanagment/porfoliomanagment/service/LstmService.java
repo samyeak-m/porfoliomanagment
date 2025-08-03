@@ -501,24 +501,19 @@ public class LstmService {
         double totalAccuracy = 0;
 
         for (int i = 0; i < testData.length - 1; i++) {
-            double[] input = Arrays.copyOf(testData[i], config.getInputSize());
-            checkForNaN1D(input, "input to LSTM (testModel)");
-            double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
-            if (output == null) {
-                continue;
-            }
-            double prediction = output[0];
+            double[] input = Arrays.copyOf(testData[i], Math.min(testData[i].length, config.getInputSize()));
             double actual = testData[i + 1][1];
             double currentClosePrice = testData[i][1];
 
-            prediction = applyPredictionConstraints(prediction, currentClosePrice);
+            double[] hiddenState = new double[config.getHiddenSize()];
+            double[] cellState = new double[config.getHiddenSize()];
+            double[] output = lstm.forward(input, hiddenState, cellState);
 
-            double accuracy = calculatePredictionAccuracy(prediction, actual, currentClosePrice);
-            totalAccuracy += accuracy;
-
-            if (i < 5) {
-                System.out.printf("Raw prediction: %.4f, Last close: %.4f, After constraints: %.4f, Actual: %.4f%n", 
-                    output[0], currentClosePrice, prediction, actual);
+            if (output != null && output.length > 0) {
+                double prediction = output[0];
+                prediction = applyPredictionConstraints(prediction, currentClosePrice);
+                double accuracy = calculatePredictionAccuracy(prediction, actual, currentClosePrice);
+                totalAccuracy += accuracy;
             }
         }
         return totalAccuracy / (testData.length - 1);
