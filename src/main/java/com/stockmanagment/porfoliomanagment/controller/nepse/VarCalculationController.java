@@ -15,15 +15,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.stockmanagment.porfoliomanagment.service.StockSymbolCacheService;
 import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 
 @RestController
 @RequestMapping("/api/var")
 public class VarCalculationController {
-
-    @Autowired
-    private StockSymbolCacheService stockSymbolCacheService;
 
     private final VarCalculationService varCalculationService;
 
@@ -37,16 +34,26 @@ public class VarCalculationController {
         long startTime = System.currentTimeMillis();
         
         try {
-            List<String> symbols = stockSymbolCacheService.getCachedStockSymbols();
+            // Use DatabaseHelper directly instead of cache service
+            DatabaseHelper dbHelper = new DatabaseHelper();
+            List<String> symbols = dbHelper.getAllStockTableNames();
+            
+            // Convert to uppercase and sort
+            List<String> sortedSymbols = symbols.stream()
+                    .map(String::toUpperCase)
+                    .sorted()
+                    .collect(java.util.stream.Collectors.toList());
             
             long duration = System.currentTimeMillis() - startTime;
+            System.out.println("Fetched " + sortedSymbols.size() + " symbols in " + duration + "ms");
             
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)))
-                    .body(symbols);
+                    .body(sortedSymbols);
                     
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
+            System.err.println("Error fetching stock symbols in " + duration + "ms: " + e.getMessage());
             return ResponseEntity.ok(new ArrayList<>());
         }
     }

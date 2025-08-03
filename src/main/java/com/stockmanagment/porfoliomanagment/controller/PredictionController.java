@@ -1,15 +1,14 @@
 package com.stockmanagment.porfoliomanagment.controller;
 
 import java.io.File;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,7 +20,8 @@ import com.stockmanagment.porfoliomanagment.config.LstmConfig;
 import com.stockmanagment.porfoliomanagment.dto.PredictionRequestDTO;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.LstmService;
-import com.stockmanagment.porfoliomanagment.service.StockSymbolCacheService;
+import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 
 @RestController
 @RequestMapping("/api/lstm")
@@ -32,17 +32,34 @@ public class PredictionController {
 
     @Autowired
     private LstmConfig config;
-    
+
     @Autowired
-    private StockSymbolCacheService stockSymbolCacheService;
+    private VarCalculationService varCalculationService;
 
     @PostMapping("/predict")
     public ResponseEntity<Map<String, Object>> predict(@RequestBody PredictionRequestDTO request) {
         try {
-            // Get LSTM prediction only
+            // Get LSTM prediction
             PredictionResponseDTO lstmPrediction = lstmService.predict(request.getStockSymbol());
 
-            // Return only LSTM prediction data
+            // Get VaR parameters from request or use defaults
+            int daysOfInvestment = request.getDaysOfInvestment() != null ? request.getDaysOfInvestment() : 25;
+            String confidenceLevelStr = request.getConfidenceLevel();
+            double confidenceLevel;
+
+            if ("dynamic".equals(confidenceLevelStr)) {
+                confidenceLevel = varCalculationService.calculateDynamicConfidenceLevel(request.getStockSymbol());
+            } else {
+                confidenceLevel = Double.parseDouble(confidenceLevelStr != null ? confidenceLevelStr : "0.95");
+            }
+
+            // Calculate VaR
+            double varValue = varCalculationService.calculateVaR(request.getStockSymbol(), daysOfInvestment,
+                    confidenceLevel);
+            double initialPrice = varCalculationService.getInitialStockPrice(request.getStockSymbol());
+            double varPercentage = (varValue / initialPrice) * 100;
+
+            // Combine results
             Map<String, Object> response = new HashMap<>();
             response.put("stockSymbol", lstmPrediction.getStockSymbol());
             response.put("prediction", lstmPrediction.getPrediction());
@@ -50,6 +67,13 @@ public class PredictionController {
             response.put("pointChange", lstmPrediction.getPointChange());
             response.put("priceChange", lstmPrediction.getPriceChange());
             response.put("predictionDate", lstmPrediction.getPredictionDate());
+
+            // Add VaR data
+            response.put("varValue", varValue);
+            response.put("varPercentage", varPercentage);
+            response.put("confidenceLevel", confidenceLevel * 100);
+            response.put("initialPrice", initialPrice);
+            response.put("daysOfInvestment", daysOfInvestment);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -134,21 +158,19 @@ public class PredictionController {
     }
 
     @GetMapping("/stock-symbols")
-    public ResponseEntity<List<String>> getStockSymbols() {
-        long startTime = System.currentTimeMillis();
-        
+    public List<String> getStockSymbols() {
         try {
-            List<String> symbols = stockSymbolCacheService.getCachedStockSymbols();
-            
-            long duration = System.currentTimeMillis() - startTime;
-            
-            return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)))
-                    .body(symbols);
-                    
+            DatabaseHelper dbHelper = new DatabaseHelper();
+            List<String> symbols = dbHelper.getAllStockTableNames();
+
+            return symbols.stream()
+                    .map(String::toUpperCase)
+                    .sorted()
+                    .collect(Collectors.toList());
+
         } catch (Exception e) {
-            long duration = System.currentTimeMillis() - startTime;
-            return ResponseEntity.ok(new ArrayList<>());
+            System.err.println("Error fetching stock symbols: " + e.getMessage());
+            return new ArrayList<>();
         }
     }
 
