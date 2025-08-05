@@ -1,5 +1,8 @@
 package com.stockmanagment.porfoliomanagment.service.nepse;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
@@ -11,7 +14,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -19,11 +21,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
@@ -31,9 +30,6 @@ import com.stockmanagment.porfoliomanagment.repository.nepse.DailyDataRepository
 
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 @Service
 public class DailyDataService {
@@ -44,8 +40,8 @@ public class DailyDataService {
     private static final LocalTime START_OF_DAY = LocalTime.of(10, 45);
     private static final LocalTime END_OF_DAY = LocalTime.of(15, 15);
     private static final LocalDate today = LocalDate.now();
-    private String lastHash = "";
-    private LocalDateTime lastUpdateOfTheDay;
+    private String lastHash = ""; // To store hash of last fetched data
+    private LocalDateTime lastUpdateOfTheDay; // To track the last update
 
     @Autowired
     private DailyDataRepository dailyDataRepository;
@@ -54,141 +50,84 @@ public class DailyDataService {
     private CustomDailyDataRepository customDailyDataRepository;
 
     @Autowired
-    private EntityManager entityManager;
-    
-    // Non-blocking WebClient for HTTP requests
-    private final WebClient webClient;
-
-    public DailyDataService() {
-        this.webClient = WebClient.builder()
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024)) // 1MB buffer
-                .build();
-    }
+    private EntityManager entityManager; // EntityManager for native query execution
 
     @PostConstruct
     public void onStartup() {
-        System.out.println("Server has started. Preparing to start scraping...");
-        startScrapingAfterDelay();
+       System.out.println("Server has started. Preparing to start scraping...");
+       startScrapingAfterDelay();
     }
 
-    @Async
-    public CompletableFuture<Void> startScrapingAfterDelay() {
-        return CompletableFuture.runAsync(() -> {
+    public void startScrapingAfterDelay() {
+        new Thread(() -> {
             try {
                 Thread.sleep(10000);
-                scrapeAndStoreDailyDataAsync().subscribe();
+                scrapeAndStoreDailyData();
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.err.println("Startup scraping interrupted: " + e.getMessage());
+                e.printStackTrace();
             }
-        });
+        }).start();
     }
 
     @Scheduled(fixedRate = 60000)
     public void scrapeAndStoreDailyData() {
-        scrapeAndStoreDailyDataAsync()
-            .subscribeOn(Schedulers.boundedElastic())
-            .subscribe(
-                result -> System.out.println("Scraping completed successfully"),
-                error -> System.err.println("Error during scheduled scraping: " + error.getMessage())
-            );
-    }
-
-    public Mono<String> scrapeAndStoreDailyDataAsync() {
-        return Mono.fromCallable(() -> {
+        try {
             LocalTime now = LocalTime.now();
             DayOfWeek dayOfWeek = today.getDayOfWeek();
 
             if (dayOfWeek == DayOfWeek.FRIDAY || dayOfWeek == DayOfWeek.SATURDAY) {
                 System.out.println("Market is closed on Friday and Saturday. Sleeping until Sunday.");
-                return "Market closed - weekend";
+                Thread.sleep(getSleepDurationUntilSunday());
+                return;
             }
 
             if (now.isBefore(START_OF_DAY) || now.isAfter(END_OF_DAY)) {
                 System.out.println("Market is closed. Skipping scraping.");
-                return "Market closed - outside hours";
+                return;
             }
 
-            return "Market open";
-        })
-        .flatMap(marketStatus -> {
-            if (marketStatus.contains("Market closed")) {
-                return Mono.just(marketStatus);
+            String content = fetchData(BASE_URL);
+            String currentHash = generateHash(content);
+
+            if (!currentHash.equals(lastHash)) {
+                processAndStoreData(content);
+                lastHash = currentHash;
+                storeLastUpdateOfTheDay();
+                System.out.println("Data updated at: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            } else {
+                System.out.println("Data unchanged. Skipping update.");
             }
-            
-            return fetchDataAsync(BASE_URL)
-                .flatMap(content -> generateHashAsync(content)
-                    .flatMap(currentHash -> {
-                        if (!currentHash.equals(lastHash)) {
-                            return processAndStoreDataAsync(content)
-                                .doOnSuccess(result -> {
-                                    lastHash = currentHash;
-                                    storeLastUpdateOfTheDay();
-                                    System.out.println("Data updated at: " + 
-                                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                                })
-                                .then(Mono.just("Data updated successfully"));
-                        } else {
-                            System.out.println("Data unchanged. Skipping update.");
-                            return Mono.just("Data unchanged");
-                        }
-                    }));
-        })
-        .onErrorResume(error -> {
-            System.err.println("Error during data scraping: " + error.getMessage());
-            return Mono.just("Error: " + error.getMessage());
-        });
+
+            Thread.sleep(getSleepDuration());
+        } catch (Exception e) {
+            System.err.println("Error during data scraping: " + e.getMessage());
+        }
     }
 
-    public Mono<String> fetchDataAsync(String urlStr) {
-        return webClient.get()
-                .uri(urlStr)
-                .header("User-Agent", "Mozilla/5.0")
-                .accept(MediaType.TEXT_HTML)
-                .retrieve()
-                .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(30))
-                .onErrorResume(error -> {
-                    System.err.println("Error fetching data from: " + urlStr + " - " + error.getMessage());
-                    return Mono.error(new RuntimeException("Failed to fetch data", error));
-                });
+    // Fetch data from the given URL
+    private String fetchData(String urlStr) throws IOException {
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+        return new String(conn.getInputStream().readAllBytes());
     }
 
-    public Mono<String> generateHashAsync(String content) {
-        return Mono.fromCallable(() -> {
-            try {
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hash = digest.digest(content.getBytes());
-                return Base64.getEncoder().encodeToString(hash);
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException("Error generating hash", e);
-            }
-        }).subscribeOn(Schedulers.boundedElastic());
+    // Generate a hash for the fetched content to detect changes
+    private String generateHash(String content) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] hash = digest.digest(content.getBytes());
+        return Base64.getEncoder().encodeToString(hash);
     }
 
-    public Mono<Void> processAndStoreDataAsync(String content) {
-        return Mono.fromCallable(() -> {
-            Document doc = Jsoup.parse(content);
-            return doc.select("table.table tr");
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .flatMapMany(Flux::fromIterable)
-        .parallel()
-        .runOn(Schedulers.boundedElastic())
-        .map(this::parseRowToDaily)
-        .filter(dailyData -> dailyData != null)
-        .sequential()
-        .collectList()
-        .flatMap(this::saveAllDailyDataAsync)
-        .then();
-    }
-
-    private DailyData parseRowToDaily(Element row) {
-        try {
+    // Process the scraped HTML content and store the data
+    private void processAndStoreData(String content) {
+        Document doc = Jsoup.parse(content);
+        for (Element row : doc.select("table.table tr")) {
             Elements cells = row.select("td");
 
             if (cells.size() < 21) {
-                return null;
+                continue; // Skip rows that don't have enough data
             }
 
             String symbol = cells.get(1).text().trim();
@@ -197,81 +136,77 @@ public class DailyDataService {
             double low = parseDouble(cells.get(5).text());
             double close = parseDouble(cells.get(6).text());
 
-            Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
+            Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now()); // Current timestamp with date and time
+
             LocalDate localDate = LocalDate.from(timestamp.toLocalDateTime());
 
-            DailyData dailyData = new DailyData();
-            dailyData.setDate(localDate);
-            dailyData.setSymbol(symbol);
-            dailyData.setOpen(Double.valueOf(open));
-            dailyData.setHigh(Double.valueOf(high));
-            dailyData.setLow(Double.valueOf(low));
-            dailyData.setClose(Double.valueOf(close));
+            DailyData existingData = customDailyDataRepository.getBySymbol(symbol);
 
-            return dailyData;
-        } catch (Exception e) {
-            System.err.println("Error parsing row: " + e.getMessage());
-            return null;
+            if (existingData != null) {
+                // Update existing record
+                existingData.setOpen(Double.valueOf(open));
+                existingData.setHigh(Double.valueOf(high));
+                existingData.setLow(Double.valueOf(low));
+                existingData.setClose(Double.valueOf(close));
+                existingData.setDate(localDate);
+                // Set other fields as needed
+                dailyDataRepository.save(existingData);
+            } else {
+                // Insert new record
+                DailyData dailyData = new DailyData();
+                dailyData.setDate(localDate);
+                dailyData.setSymbol(symbol);
+                dailyData.setOpen(Double.valueOf(open));
+                dailyData.setHigh(Double.valueOf(high));
+                dailyData.setLow(Double.valueOf(low));
+                dailyData.setClose(Double.valueOf(close));
+                // Set other fields as needed
+                dailyDataRepository.save(dailyData);
+            }
         }
     }
 
-    public Mono<Void> saveAllDailyDataAsync(List<DailyData> dataList) {
-        return Mono.fromRunnable(() -> {
-            for (DailyData dailyData : dataList) {
-                try {
-                    DailyData existingData = customDailyDataRepository.getBySymbol(dailyData.getSymbol());
-                    
-                    if (existingData != null) {
-                        existingData.setOpen(dailyData.getOpen());
-                        existingData.setHigh(dailyData.getHigh());
-                        existingData.setLow(dailyData.getLow());
-                        existingData.setClose(dailyData.getClose());
-                        existingData.setDate(dailyData.getDate());
-                        dailyDataRepository.save(existingData);
-                    } else {
-                        dailyDataRepository.save(dailyData);
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error saving daily data for symbol " + dailyData.getSymbol() + ": " + e.getMessage());
-                }
-            }
-        }).subscribeOn(Schedulers.boundedElastic()).then();
+    // Parse a double from a string with handling for missing or malformed values
+    private double parseDouble(String text) {
+        try {
+            return Double.parseDouble(text.replace(",", "").replace("-", "0"));
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
     }
 
-    // Reactive methods for other operations
-    public Mono<List<DailyData>> getDailyDataBySymbolAndDateRangeAsync(String symbol, LocalDate startDate, LocalDate endDate) {
-        return Mono.fromCallable(() -> {
-            Timestamp startTimestamp = startDate != null ? Timestamp.valueOf(startDate.atStartOfDay()) : null;
-            Timestamp endTimestamp = endDate != null ? Timestamp.valueOf(endDate.atTime(23, 59, 59)) : Timestamp.valueOf(LocalDateTime.now());
-            return customDailyDataRepository.getByDateRangeAndSymbol(symbol, startTimestamp, endTimestamp);
-        }).subscribeOn(Schedulers.boundedElastic());
+    // Get sleep duration between scraping operations, handling market open/close
+    private long getSleepDuration() {
+        LocalTime now = LocalTime.now();
+        if (now.isBefore(START_OF_DAY)) {
+            return Duration.between(now, START_OF_DAY).toMillis();
+        } else if (now.isAfter(END_OF_DAY)) {
+            return Duration.between(now, START_OF_DAY.plusHours(24)).toMillis();
+        }
+        return 60000; // Sleep for 60 seconds if market is open
     }
 
-    public Mono<List<String>> getAllAvailableSymbolsAsync() {
-        return Mono.fromCallable(() -> customDailyDataRepository.getAllSymbolsFromDailyData())
-                .subscribeOn(Schedulers.boundedElastic());
+    // Get sleep duration until the next Sunday for weekly market closure handling
+    private long getSleepDurationUntilSunday() {
+        LocalDate today = LocalDate.now();
+        LocalDate nextSunday = today.with(DayOfWeek.SUNDAY);
+        return Duration.between(LocalDateTime.now(), LocalDateTime.of(nextSunday, START_OF_DAY)).toMillis();
     }
 
-    public Mono<List<DailyData>> handleDynamicRequestAsync(String symbol, LocalDate startDate, LocalDate endDate) {
-        return Mono.fromCallable(() -> {
-            LocalDate effectiveEndDate = endDate;
-            if (symbol == null && startDate == null && endDate == null) {
-                return getDailyDataBySymbolAndDateRange(null, null, null);
-            } else if (symbol != null && startDate == null && endDate == null) {
-                return List.of(customDailyDataRepository.getBySymbol(symbol));
-            } else if (startDate != null && endDate == null) {
-                effectiveEndDate = LocalDate.now(); 
-            }
-            return getDailyDataBySymbolAndDateRange(symbol, startDate, effectiveEndDate);
-        }).subscribeOn(Schedulers.boundedElastic());
+    // Parse integer with handling for non-numeric inputs (if needed)
+    private int parseInt(String text) {
+        try {
+            return Integer.parseInt(text.replace(",", "").replace("-", "0"));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
-    public Mono<List<Double>> getStockPriceHistoryAsync(String stockSymbol, int days) {
-        return Mono.fromCallable(() -> dailyDataRepository.findPricesForLastNDays(stockSymbol, days))
-                .subscribeOn(Schedulers.boundedElastic());
+    // Store the last update time of the day (to track scraping on a daily basis)
+    public void storeLastUpdateOfTheDay() {
+        lastUpdateOfTheDay = LocalDateTime.now();
     }
 
-    // Keep synchronous versions for backward compatibility
     public List<DailyData> getDailyDataBySymbolAndDateRange(String symbol, LocalDate startDate, LocalDate endDate) {
         Timestamp startTimestamp = startDate != null ? Timestamp.valueOf(startDate.atStartOfDay()) : null;
         Timestamp endTimestamp = endDate != null ? Timestamp.valueOf(endDate.atTime(23, 59, 59)) : Timestamp.valueOf(LocalDateTime.now());
@@ -282,13 +217,14 @@ public class DailyDataService {
         return customDailyDataRepository.getAllSymbolsFromDailyData();
     }
 
+    // Handle dynamic requests
     public List<DailyData> handleDynamicRequest(String symbol, LocalDate startDate, LocalDate endDate) {
         if (symbol == null && startDate == null && endDate == null) {
-            return getDailyDataBySymbolAndDateRange(null, null, null);
+            return getDailyDataBySymbolAndDateRange(null, null, null); // Load all data
         } else if (symbol != null && startDate == null && endDate == null) {
             return List.of(customDailyDataRepository.getBySymbol(symbol));
         } else if (startDate != null && endDate == null) {
-            endDate = LocalDate.now(); 
+            endDate = LocalDate.now(); // Set end date to current date
         }
         return getDailyDataBySymbolAndDateRange(symbol, startDate, endDate);
     }
@@ -297,41 +233,5 @@ public class DailyDataService {
         return dailyDataRepository.findPricesForLastNDays(stockSymbol, days);
     }
 
-    // Utility methods
-    private double parseDouble(String text) {
-        try {
-            return Double.parseDouble(text.replace(",", "").replace("-", "0"));
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-    }
 
-    private long getSleepDuration() {
-        LocalTime now = LocalTime.now();
-        if (now.isBefore(START_OF_DAY)) {
-            return Duration.between(now, START_OF_DAY).toMillis();
-        } else if (now.isAfter(END_OF_DAY)) {
-            return Duration.between(now, START_OF_DAY.plusHours(24)).toMillis();
-        }
-        return 60000;
-    }
-
-    private long getSleepDurationUntilSunday() {
-        LocalDate today = LocalDate.now();
-        LocalDate nextSunday = today.with(DayOfWeek.SUNDAY);
-        return Duration.between(LocalDateTime.now(), LocalDateTime.of(nextSunday, START_OF_DAY)).toMillis();
-    }
-
-    private int parseInt(String text) {
-        try {
-            return Integer.parseInt(text.replace(",", "").replace("-", "0"));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    public void storeLastUpdateOfTheDay() {
-        lastUpdateOfTheDay = LocalDateTime.now();
-    }
 }
-
