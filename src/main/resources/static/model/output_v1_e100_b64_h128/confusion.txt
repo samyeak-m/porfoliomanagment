@@ -1,0 +1,178 @@
+=== MODEL CONFIGURATION ===
+Version: v1
+Hidden Size: 128
+Dense Size: 16
+Input Size: 18
+Output Size: 1
+Epochs: 100
+Batch Size: 64
+Training Rate: 1.0E-4
+Threshold: 1.0
+Interval: 100
+
+=== DATASET INFORMATION ===
+Training data size: 256914
+Validation data size: 171276
+Final test data size: 171276
+Total data points: 599466
+Train/Validation/Test split: 42.9%/28.6%/28.6%
+
+=== MODEL PERFORMANCE ===
+Final Test Accuracy: 0.1506
+Final Test Loss: 0.8441
+Overall Average Training Accuracy: 0.1506
+Overall Average Training Loss: 0.8441
+
+=== CONFUSION MATRIX ===
+True Positives (TP): 73293
+False Negatives (FN): 264
+False Positives (FP): 83902
+True Negatives (TN): 261
+Total Predictions: 157720
+
+Matrix Format:
+             Predicted
+           Pos    Neg
+Actual Pos 73293    264
+       Neg 83902    261
+
+=== POSITIVE CLASS METRICS ===
+Precision: 0.4663 (73293/157195)
+Recall (Sensitivity): 0.9964 (73293/73557)
+F1 Score: 0.6353
+
+=== NEGATIVE CLASS METRICS ===
+Precision: 0.4971 (261/525)
+Recall (Specificity): 0.0031 (261/84163)
+F1 Score: 0.0062
+
+=== OVERALL METRICS ===
+Overall Accuracy: 0.4664 (73554/157720)
+Overall Error Rate: 0.5336 (84166/157720)
+
+=== TECHNICAL INDICATORS USED ===
+1. EMA (Exponential Moving Average) - Period: 16
+2. SMA (Simple Moving Average) - Period: 20
+3. RSI (Relative Strength Index) - Period: 3
+4. ATR (Average True Range) - Period: 14
+5. MACD (Moving Average Convergence Divergence) - Periods: 12,26,9
+6. Bollinger Bands - Period: 20, Std Dev: 2.0
+7. Stochastic Oscillator - Period: 14
+
+=== TECHNICAL INDICATORS CALCULATION DETAILS ===
+Calculation Method: Dynamic from actual training data
+Data Source: First 5 rows of training dataset
+EMA Period: 16, SMA Period: 20, RSI Period: 3
+MACD Periods: 12,26,9 | BB Period: 20, StdDev: 2.0 | Stochastic Period: 14
+
+=== SAMPLE TECHNICAL INDICATORS (First 5 Rows) ===
+Row 0: Close=207.00, EMA=207.00, SMA=207.00, RSI=50.00, ATR=8.00, MACD=0.00, Signal=0.00, Histogram=0.00, BB_Upper=211.14, BB_Lower=202.86, Stoch_K=0.00, Stoch_D=0.00
+Row 1: Close=199.00, EMA=202.75, SMA=203.00, RSI=50.00, ATR=8.00, MACD=-0.08, Signal=-0.04, Histogram=-0.03, BB_Upper=202.98, BB_Lower=195.02, Stoch_K=0.00, Stoch_D=0.00
+Row 2: Close=196.00, EMA=200.21, SMA=200.67, RSI=50.00, ATR=6.33, MACD=-0.10, Signal=-0.07, Histogram=-0.04, BB_Upper=199.92, BB_Lower=192.08, Stoch_K=0.00, Stoch_D=0.00
+Row 3: Close=202.00, EMA=200.75, SMA=201.00, RSI=35.29, ATR=6.25, MACD=-0.05, Signal=-0.06, Histogram=0.01, BB_Upper=206.04, BB_Lower=197.96, Stoch_K=31.58, Stoch_D=10.53
+Row 4: Close=198.00, EMA=200.05, SMA=200.40, RSI=26.09, ATR=5.80, MACD=-0.09, Signal=-0.07, Histogram=-0.02, BB_Upper=201.96, BB_Lower=194.04, Stoch_K=10.53, Stoch_D=14.04
+
+Note: Values calculated dynamically from actual training data
+Close prices denormalized from range [0.00, 76960.00]
+
+=== TRAINING EPOCH DETAILS ===
+Epoch   0: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   1: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   2: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   3: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   4: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   5: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   6: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   7: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   8: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch   9: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  10: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  11: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  12: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  13: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  14: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  15: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  16: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  17: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  18: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  19: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  20: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  21: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  22: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  23: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  24: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  25: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  26: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  27: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  28: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  29: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  30: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  31: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  32: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  33: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  34: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  35: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  36: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  37: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  38: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  39: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  40: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  41: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  42: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  43: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  44: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  45: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  46: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  47: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  48: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  49: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  50: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  51: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  52: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  53: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  54: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  55: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  56: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  57: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  58: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  59: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  60: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  61: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  62: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  63: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  64: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  65: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  66: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  67: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  68: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  69: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  70: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  71: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  72: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  73: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  74: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  75: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  76: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  77: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  78: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  79: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  80: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  81: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  82: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  83: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  84: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  85: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  86: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  87: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  88: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  89: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  90: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  91: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  92: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  93: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  94: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  95: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  96: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  97: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  98: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
+Epoch  99: Accuracy = 0.1506, Loss = 0.8441, Val_Accuracy = 0.1538, Val_Loss = 0.8409
