@@ -112,18 +112,12 @@ public class TechnicalIndicators {
         }
         
         double[] signal = calculateEMA(macd, signalPeriod);
-        
         double[] histogram = new double[prices.length];
-        for (int i = 0; i < prices.length; i++) {
-            histogram[i] = macd[i] - signal[i];
-        }
-        
-        System.out.println("MACD Debug - First 5 values:");
-        for (int i = 0; i < Math.min(5, prices.length); i++) {
-            System.out.printf("Price[%d]=%.2f, EMA12=%.2f, EMA26=%.2f, MACD=%.4f, Signal=%.4f, Histogram=%.4f%n",
-                    i, prices[i], emaShort[i], emaLong[i], macd[i], signal[i], histogram[i]);
-        }
-        
+        for (int i = 0; i < prices.length; i++) histogram[i] = macd[i] - signal[i];
+
+        // REMOVED noisy debug printing for performance
+        // System.out.println("MACD Debug - First 5 values: ...");
+
         return new double[][]{macd, signal, histogram};
     }
 

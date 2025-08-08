@@ -114,7 +114,7 @@ public class LSTMNetwork implements Serializable {
 
     private void initializeBiases() {
         Arrays.fill(biasInputGate, 0.01);
-        Arrays.fill(biasForgetGate, 0.01);
+        Arrays.fill(biasForgetGate, 1.0); // CHANGED: better memory retention
         Arrays.fill(biasOutputGate, 0.01);
         Arrays.fill(biasCellGate, 0.01);
         Arrays.fill(biasOutput, 0.01);

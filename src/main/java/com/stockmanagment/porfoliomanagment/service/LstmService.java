@@ -25,6 +25,7 @@ import com.stockmanagment.porfoliomanagment.config.LstmConfig;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMNetwork;
+import com.stockmanagment.porfoliomanagment.service.nepse.lstm.lstm.LSTMTrainer;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.CustomChartUtils;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.DataPreprocessor;
 import com.stockmanagment.porfoliomanagment.service.nepse.lstm.util.TechnicalIndicators;
@@ -391,83 +392,81 @@ public class LstmService {
     }
 
     private double[] trainModel(LSTMNetwork lstm, double[][] trainData, double[][] validationData, int epochs, double learningRate, double[] min, double[] max) {
-        double totalAccuracy = 0;
-        double totalLoss = 0;
+        double totalAccuracy = 0.0;
+        double totalLoss = 0.0;
+
+        final int patience = 8;
+        final int lrPlateau = 4;
+        final double lrDecay = 0.5;
+        final double minLR = 1e-6;
+        final double minDelta = 1e-5;
+        final int batchSize = Math.max(16, Math.min(config.getBatchSize(), Math.max(16, trainData.length / 32)));
+
+        double currentLR = learningRate;
+        double bestValLoss = Double.POSITIVE_INFINITY;
+        int noImprove = 0;
+
+        LSTMTrainer trainer = new LSTMTrainer(lstm, learningRate);
+        java.util.Random rng = new java.util.Random(42);
+
+        epochList.clear();
+        accuracyList.clear();
+        lossList.clear();
+        validationAccuracyList.clear();
+        validationLossList.clear();
 
         for (int epoch = 0; epoch < epochs; epoch++) {
-            currentEpoch = epoch + 1;
-            currentTrainingMessage = "Training epoch " + (epoch + 1) + "/" + epochs + " - Learning patterns...";
-            
-            currentProgress = 60.0 + (35.0 * (epoch + 1) / epochs);
-            
-            long startTime = System.currentTimeMillis();
-            
-            // ADD: Check memory every 10 epochs
-            if (epoch % 10 == 0) {
-                checkMemoryAndCleanup();
-            }
-            
-            int totalDataPoints = trainData.length;
-            int batchSize = config.getBatchSize();
-            int batches = totalDataPoints / batchSize;
+            long start = System.currentTimeMillis();
 
-            for (int batch = 0; batch < batches; batch++) {
-                double[][] batchData = Arrays.copyOfRange(trainData, batch * batchSize, (batch + 1) * batchSize);
-                for (double[] data : batchData) {
-                    double[] hiddenState = new double[lstm.getHiddenSize()];
-                    double[] cellState = new double[lstm.getHiddenSize()];
-                    
-                    double[] input = Arrays.copyOf(data, config.getInputSize());
-                    double[] target = new double[]{data[data.length - 1]};
-                    
-                    double[] output = lstm.forward(input, hiddenState, cellState);
-                    if (output == null) {
-                        LOGGER.severe("NaN value encountered during forward pass. Stopping training.");
-                        return new double[]{0, 0};
-                    }
-                    
-                    lstm.backpropagate(input, target, learningRate);
+            trainer.trainEpoch(trainData, batchSize, currentLR, rng);
+
+            double trainAcc = testModel(lstm, trainData);
+            double trainLoss = calculateLoss(lstm, trainData);
+
+            boolean doFullEval = (epoch < 5) || (epoch % 2 == 0);
+            double valAcc = doFullEval ? testModel(lstm, validationData) : (validationAccuracyList.isEmpty() ? trainAcc : validationAccuracyList.get(validationAccuracyList.size() - 1));
+            double valLoss = doFullEval ? calculateValidationLoss(lstm, validationData) : (validationLossList.isEmpty() ? trainLoss : validationLossList.get(validationLossList.size() - 1));
+
+            totalAccuracy += trainAcc;
+            totalLoss += trainLoss;
+
+            long elapsed = System.currentTimeMillis() - start;
+            logTrainingProgress(epoch, trainAcc, trainLoss, valAcc, valLoss, elapsed);
+
+            epochList.add(epoch + 1);
+            accuracyList.add(trainAcc);
+            lossList.add(trainLoss);
+            validationAccuracyList.add(valAcc);
+            validationLossList.add(valLoss);
+
+            currentEpoch = epoch + 1;
+            currentProgress = ((epoch + 1) * 90.0) / epochs;
+            currentTrainingMessage = String.format("Training epoch %d/%d - acc: %.4f, val_acc: %.4f, val_loss: %.5f",
+                    epoch + 1, epochs, trainAcc, valAcc, valLoss);
+
+            // Early stopping + LR scheduler
+            if (valLoss + minDelta < bestValLoss) {
+                bestValLoss = valLoss;
+                noImprove = 0;
+                try { createDirectory(config.getOutputDir()); lstm.saveModel(config.getModelFilePath()); } catch (Exception ignore) {}
+            } else {
+                noImprove++;
+                if (noImprove % lrPlateau == 0) {
+                    currentLR = Math.max(minLR, currentLR * lrDecay);
+                }
+                if (noImprove >= patience) {
+                    break;
                 }
             }
 
-            double accuracy = testModel(lstm, trainData);
-            double epochLoss = calculateLoss(lstm, trainData);
-
-            double validationAccuracy = testModel(lstm, validationData);
-            double validationLoss = calculateValidationLoss(lstm, validationData);
-
-            long endTime = System.currentTimeMillis();
-            long elapsedTimeMillis = endTime - startTime;
-
-            epochList.add(epoch);
-            accuracyList.add(accuracy);
-            lossList.add(epochLoss);
-            validationAccuracyList.add(validationAccuracy);
-            validationLossList.add(validationLoss);
-
-            logTrainingProgress(epoch, accuracy, epochLoss, validationAccuracy, validationLoss, elapsedTimeMillis);
-
-            totalAccuracy += accuracy;
-            totalLoss += epochLoss;
-            
-            currentTrainingMessage = String.format(
-                "Epoch %d/%d - Acc: %.3f, Loss: %.3f, Val_Acc: %.3f, Val_Loss: %.3f", 
-                epoch + 1, epochs, accuracy, epochLoss, validationAccuracy, validationLoss
-            );
-
-            // ADD: Check memory after heavy operations
-            if (epoch % 25 == 0) {
-                checkMemoryAndCleanup();
-            }
-
-            try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            if (isMemoryLow()) { optimizeMemoryUsage(); }
         }
-        
+
         currentTrainingMessage = "Calculating final metrics and saving model...";
         currentProgress = 95.0;
-        
-        double averageAccuracy = totalAccuracy / epochs;
-        double averageLoss = totalLoss / epochs;
+
+        double averageAccuracy = totalAccuracy / Math.max(1, epochList.size());
+        double averageLoss = totalLoss / Math.max(1, epochList.size());
 
         LOGGER.log(Level.INFO, String.format("Overall Average Accuracy: %.2f", averageAccuracy));
         LOGGER.log(Level.INFO, String.format("Overall Average Loss: %.2f", averageLoss));
@@ -499,86 +498,46 @@ public class LstmService {
 
     private double testModel(LSTMNetwork lstm, double[][] testData) {
         double totalAccuracy = 0;
+        int count = Math.max(0, testData.length - 1);
 
         for (int i = 0; i < testData.length - 1; i++) {
-            double[] input = Arrays.copyOf(testData[i], Math.min(testData[i].length, config.getInputSize()));
+            double[] input = Arrays.copyOf(testData[i], config.getInputSize());
+            double[] hidden = new double[lstm.getHiddenSize()];
+            double[] cell = new double[lstm.getHiddenSize()];
+            double[] output = lstm.forward(input, hidden, cell);
+            if (output == null) continue;
+
+            double pred = output[0];
             double actual = testData[i + 1][1];
-            double currentClosePrice = testData[i][1];
+            double lastClose = testData[i][1];
 
-            double[] hiddenState = new double[config.getHiddenSize()];
-            double[] cellState = new double[config.getHiddenSize()];
-            double[] output = lstm.forward(input, hiddenState, cellState);
-
-            if (output != null && output.length > 0) {
-                double prediction = output[0];
-                prediction = applyPredictionConstraints(prediction, currentClosePrice);
-                double accuracy = calculatePredictionAccuracy(prediction, actual, currentClosePrice);
-                totalAccuracy += accuracy;
-            }
+            pred = applyPredictionConstraints(pred, lastClose);
+            totalAccuracy += calculatePredictionAccuracy(pred, actual, lastClose);
         }
-        return totalAccuracy / (testData.length - 1);
-    }
-
-    private double applyPredictionConstraints(double prediction, double lastClosePrice) {
-        double maxDailyChange = 0.05;
-        double minPrice = lastClosePrice * (1 - maxDailyChange);
-        double maxPrice = lastClosePrice * (1 + maxDailyChange);
-
-        if (prediction < minPrice) {
-            prediction = minPrice;
-        } else if (prediction > maxPrice) {
-            prediction = maxPrice;
-        }
-
-        return prediction;
-    }
-
-    private double calculatePredictionAccuracy(double prediction, double actual, double currentClosePrice) {
-        double maxChange = 0.05 * currentClosePrice;
-        double diff = Math.abs(prediction - actual);
-
-        if (diff > maxChange) {
-            return 0;
-        }
-
-        double accuracy = 1 - (diff / maxChange);
-        return accuracy;
+        return count > 0 ? totalAccuracy / count : 0.0;
     }
 
     private double calculateLoss(LSTMNetwork lstm, double[][] data) {
         double totalLoss = 0;
         double maxChange = 0.05;
+        int count = Math.max(0, data.length - 1);
 
         for (int i = 0; i < data.length - 1; i++) {
             double[] input = Arrays.copyOf(data[i], config.getInputSize());
-            checkForNaN1D(input, "input to calculateLoss");
-            
-            double lastClosePrice = data[i][1];
-            double[] output = lstm.forward(input, lstm.getHiddenState(), lstm.getCellState());
-            
-            if (output == null) {
-                continue;
-            }
-            
-            double prediction = output[0];
+            double lastClose = data[i][1];
+            double[] hidden = new double[lstm.getHiddenSize()];
+            double[] cell = new double[lstm.getHiddenSize()];
+            double[] output = lstm.forward(input, hidden, cell);
+            if (output == null) continue;
 
-            prediction = applyPredictionConstraints(prediction, lastClosePrice);
-
+            double pred = applyPredictionConstraints(output[0], lastClose);
             double actual = data[i + 1][1];
-            double diff = Math.abs(prediction - actual);
-            double tolerance = maxChange * actual;
+            double diff = Math.abs(pred - actual);
+            double tol = maxChange * actual;
 
-            double loss;
-            if (diff > tolerance) {
-                loss = 1.0;
-            } else {
-                loss = diff / tolerance;
-            }
-
-            totalLoss += loss;
+            totalLoss += (diff > tol) ? 1.0 + (diff - tol) : 1.0 - (diff / tol);
         }
-
-        return totalLoss / (data.length - 1);
+        return count > 0 ? totalLoss / count : 0.0;
     }
 
     public void logFile(double finalTestAccuracy, double finalTestLoss, double averageAccuracy, double averageLoss, int[][] confusionMatrix,
@@ -1098,5 +1057,40 @@ public class LstmService {
         } catch (Exception e) {
             System.err.println("Failed to generate charts: " + e.getMessage());
         }
+    }
+
+    // Constraint predicted price to a reasonable band around last close (works for normalized or raw if both use same scale)
+    private double applyPredictionConstraints(double predicted, double lastClose) {
+        if (!Double.isFinite(predicted) || !Double.isFinite(lastClose)) return lastClose;
+        final double maxPctChange = 0.05; // 5% band, aligned with training loss tolerance
+        double lower = lastClose * (1.0 - maxPctChange);
+        double upper = lastClose * (1.0 + maxPctChange);
+        // handle zero/near-zero lastClose gracefully
+        if (Math.abs(lastClose) < 1e-8) {
+            lower = lastClose - maxPctChange;
+            upper = lastClose + maxPctChange;
+        }
+        double clamped = Math.max(lower, Math.min(upper, predicted));
+        // avoid negatives in raw-price space
+        return (lastClose > 1.0) ? Math.max(0.0, clamped) : clamped;
+    }
+
+    // Blend of directional and closeness accuracy within tolerance
+    private double calculatePredictionAccuracy(double predicted, double actual, double lastClose) {
+        if (!Double.isFinite(predicted) || !Double.isFinite(actual) || !Double.isFinite(lastClose)) return 0.0;
+
+        // Directional component
+        double dPred = predicted - lastClose;
+        double dAct = actual - lastClose;
+        double dirAcc = (Math.abs(dAct) < 1e-9) ? 1.0 : (Math.signum(dPred) == Math.signum(dAct) ? 1.0 : 0.0);
+
+        // Closeness within tolerance
+        final double maxPctChange = 0.05; // same band as constraints/loss
+        double tol = Math.max(1e-8, maxPctChange * (Math.abs(actual) > 1e-8 ? Math.abs(actual) : 1.0));
+        double err = Math.abs(predicted - actual);
+        double closeAcc = err <= tol ? (1.0 - (err / tol)) : 0.0;
+
+        // Weighted score
+        return 0.5 * dirAcc + 0.5 * closeAcc;
     }
 }
