@@ -17,6 +17,7 @@ public class LstmConfig {
     private double threshold;
     private int retrainThresholdDays;
     private String baseDir;
+    private boolean earlyStoppingEnabled = false;
 
     public String getResetColor() { return "\u001B[0m"; }
     public String getGreenColor() { return "\u001B[32m"; }
@@ -70,4 +71,12 @@ public class LstmConfig {
 
     public String getBaseDir() { return baseDir; }
     public void setBaseDir(String baseDir) { this.baseDir = baseDir; }
+
+    public boolean isEarlyStoppingEnabled() {
+        return earlyStoppingEnabled;
+    }
+
+    public void setEarlyStoppingEnabled(boolean earlyStoppingEnabled) {
+        this.earlyStoppingEnabled = earlyStoppingEnabled;
+    }
 }

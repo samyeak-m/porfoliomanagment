@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -53,6 +55,10 @@ public class LstmService {
     private volatile int currentEpoch = 0;
     private volatile double currentProgress = 0.0;
     private volatile boolean isTraining = false;
+
+    // Online learning tracking
+    private final ReentrantLock onlineUpdateLock = new ReentrantLock();
+    private final Map<String, Long> lastSeenTimestampBySymbol = new ConcurrentHashMap<>();
 
     public LstmService(LstmConfig config) {
         this.config = config;
@@ -402,6 +408,10 @@ public class LstmService {
         final double minDelta = 1e-5;
         final int batchSize = Math.max(16, Math.min(config.getBatchSize(), Math.max(16, trainData.length / 32)));
 
+        // NEW: toggle early stopping (false = always run all epochs)
+        // final boolean earlyStoppingEnabled = false;
+        final boolean earlyStoppingEnabled = config.isEarlyStoppingEnabled(); // read from properties
+
         double currentLR = learningRate;
         double bestValLoss = Double.POSITIVE_INFINITY;
         int noImprove = 0;
@@ -423,9 +433,16 @@ public class LstmService {
             double trainAcc = testModel(lstm, trainData);
             double trainLoss = calculateLoss(lstm, trainData);
 
-            boolean doFullEval = (epoch < 5) || (epoch % 2 == 0);
-            double valAcc = doFullEval ? testModel(lstm, validationData) : (validationAccuracyList.isEmpty() ? trainAcc : validationAccuracyList.get(validationAccuracyList.size() - 1));
-            double valLoss = doFullEval ? calculateValidationLoss(lstm, validationData) : (validationLossList.isEmpty() ? trainLoss : validationLossList.get(validationLossList.size() - 1));
+            // If early stopping is ON, evaluate validation every epoch; otherwise keep it periodic
+            boolean doFullEval = earlyStoppingEnabled ? true : ((epoch < 5) || (epoch % 2 == 0));
+
+            double valAcc = doFullEval
+                    ? testModel(lstm, validationData)
+                    : (validationAccuracyList.isEmpty() ? trainAcc : validationAccuracyList.get(validationAccuracyList.size() - 1));
+
+            double valLoss = doFullEval
+                    ? calculateValidationLoss(lstm, validationData)
+                    : (validationLossList.isEmpty() ? trainLoss : validationLossList.get(validationLossList.size() - 1));
 
             totalAccuracy += trainAcc;
             totalLoss += trainLoss;
@@ -444,18 +461,24 @@ public class LstmService {
             currentTrainingMessage = String.format("Training epoch %d/%d - acc: %.4f, val_acc: %.4f, val_loss: %.5f",
                     epoch + 1, epochs, trainAcc, valAcc, valLoss);
 
-            // Early stopping + LR scheduler
-            if (valLoss + minDelta < bestValLoss) {
-                bestValLoss = valLoss;
-                noImprove = 0;
-                try { createDirectory(config.getOutputDir()); lstm.saveModel(config.getModelFilePath()); } catch (Exception ignore) {}
-            } else {
-                noImprove++;
-                if (noImprove % lrPlateau == 0) {
-                    currentLR = Math.max(minLR, currentLR * lrDecay);
-                }
-                if (noImprove >= patience) {
-                    break;
+            // Only update plateau tracking on epochs where we computed fresh validation
+            if (doFullEval) {
+                if (valLoss + minDelta < bestValLoss) {
+                    bestValLoss = valLoss;
+                    noImprove = 0;
+                    try {
+                        createDirectory(config.getOutputDir());
+                        lstm.saveModel(config.getModelFilePath());
+                    } catch (Exception ignore) {}
+                } else {
+                    noImprove++;
+                    if (noImprove % lrPlateau == 0) {
+                        currentLR = Math.max(minLR, currentLR * lrDecay);
+                    }
+                    // Break only if early stopping is enabled
+                    if (earlyStoppingEnabled && noImprove >= patience) {
+                        break;
+                    }
                 }
             }
 
@@ -1092,5 +1115,78 @@ public class LstmService {
 
         // Weighted score
         return 0.5 * dirAcc + 0.5 * closeAcc;
+    }
+
+    // Perform one online SGD step for a symbol if new ground truth exists
+    private boolean onlineUpdateForSymbol(String symbol) {
+        try {
+            if (lstm == null || lstm.getMin() == null || lstm.getMax() == null) return false;
+
+            DatabaseHelper db = new DatabaseHelper();
+            // Load enough history to compute indicators; then train on the last pair
+            List<double[]> rows = db.loadLastNStockData(symbol, 64);
+            if (rows.size() < 2) return false;
+
+            // Skip if no new data since last seen
+            long latestTs = (long) rows.get(rows.size() - 1)[5];
+            Long prevTs = lastSeenTimestampBySymbol.get(symbol.toLowerCase());
+            if (prevTs != null && latestTs <= prevTs) return false;
+
+            double[][] stockDataArray = rows.toArray(new double[0][]);
+
+            // Build features: 6 base + 12 indicators = 18
+            double[][] technicalIndicators = TechnicalIndicators.calculate(stockDataArray, 16, 3);
+            double[][] extendedData = DataPreprocessor.addFeatures(stockDataArray, technicalIndicators);
+
+            // Normalize with model's scaler
+            double[] minArr = lstm.getMin();
+            double[] maxArr = lstm.getMax();
+            double[][] normalized = DataPreprocessor.normalize(extendedData, minArr, maxArr);
+
+            // Last input and next-step target (already normalized)
+            int len = normalized.length;
+            double[] input = Arrays.copyOf(normalized[len - 2], config.getInputSize());
+            double target = normalized[len - 1][1];
+
+            // Small LR and a few micro-steps
+            double onlineLR = Math.max(1e-7, config.getTrainingRate() * 0.1);
+            int microSteps = 3;
+
+            onlineUpdateLock.lock();
+            try {
+                lstm.resetState(); // clean state for stable update
+                for (int i = 0; i < microSteps; i++) {
+                    lstm.backpropagate(input, new double[]{target}, onlineLR);
+                }
+                // Persist updated weights
+                createDirectory(config.getOutputDir());
+                lstm.saveModel(config.getModelFilePath());
+                // Mark as seen
+                lastSeenTimestampBySymbol.put(symbol.toLowerCase(), latestTs);
+            } finally {
+                onlineUpdateLock.unlock();
+            }
+            return true;
+        } catch (Exception ex) {
+            // Keep silent on logs as requested; just return false to avoid breaking scheduler
+            return false;
+        }
+    }
+
+    // Periodically check for fresh closes and apply online updates
+    @Scheduled(fixedDelay = 120000)
+    public void onlineUpdateTick() {
+        if (isTraining) return; // skip while full training is running
+        if (lstm == null || lstm.getMin() == null || lstm.getMax() == null) return;
+
+        try {
+            DatabaseHelper db = new DatabaseHelper();
+            List<String> symbols = db.getAllStockTableNames();
+            for (String symbol : symbols) {
+                onlineUpdateForSymbol(symbol);
+            }
+        } catch (Exception ignore) {
+            // no-op
+        }
     }
 }

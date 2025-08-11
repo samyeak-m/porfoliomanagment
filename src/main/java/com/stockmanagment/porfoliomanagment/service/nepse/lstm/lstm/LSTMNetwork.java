@@ -583,18 +583,9 @@ public class LSTMNetwork implements Serializable {
     }
 
 
-    public int getHiddenSize() {
-        return hiddenSize;
-    }
-
-    public double[] getHiddenState() {
-        return hiddenState;
-    }
-
-    public double[] getCellState() {
-        return cellState;
-    }
-
+    public int getHiddenSize() { return hiddenSize; }
+    public double[] getHiddenState() { return hiddenState; }
+    public double[] getCellState() { return cellState; }
     public double[] getMin() {
         return min;
     }
@@ -603,4 +594,9 @@ public class LSTMNetwork implements Serializable {
         return max;
     }
 
+    // Reset recurrent states before online updates or fresh evaluations
+    public void resetState() {
+        this.hiddenState = new double[hiddenSize];
+        this.cellState = new double[hiddenSize];
+    }
 }

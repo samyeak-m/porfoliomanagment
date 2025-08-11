@@ -10,6 +10,7 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -210,6 +211,52 @@ public class DatabaseHelper {
             LOGGER.log(Level.SEVERE, "Error loading stock data after date for table " + normalizedTableName, e);
             throw e;
         }
+        return stockData;
+    }
+
+    // Load the last N rows (ascending by date) for a symbol's table
+    public List<double[]> loadLastNStockData(String tableName, int n) throws SQLException {
+        List<double[]> stockData = new ArrayList<>();
+        String normalizedTableName = tableName.toLowerCase();
+        String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + " ORDER BY date DESC LIMIT ?";
+
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setInt(1, Math.max(2, n));
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Date date = rs.getDate("date");
+                    double close = rs.getDouble("close");
+                    double high = rs.getDouble("high");
+                    double low = rs.getDouble("low");
+                    double open = rs.getDouble("open");
+
+                    double dateAsDouble = date.getTime();
+
+                    Double normalizedValue = tableNameMap.get(normalizedTableName);
+                    double normalizedTableNameValue;
+                    if (normalizedValue == null) {
+                        try {
+                            generateTableNameMap();
+                            normalizedValue = tableNameMap.get(normalizedTableName);
+                        } catch (SQLException e) {
+                            // ignore and fall back
+                        }
+                    }
+                    normalizedTableNameValue = (normalizedValue != null)
+                            ? normalizedValue
+                            : Math.abs(normalizedTableName.hashCode() % 1000) / 1000.0;
+
+                    stockData.add(new double[] { normalizedTableNameValue, close, high, low, open, dateAsDouble });
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error loading last N rows for " + normalizedTableName, e);
+            throw e;
+        }
+
+        // reverse to ascending by date
+        Collections.reverse(stockData);
         return stockData;
     }
 
