@@ -359,8 +359,8 @@ public class dailyData {
     private static Map<String, Object> getLastData(String symbol) throws SQLException {
         Map<String, Object> data = new HashMap<>();
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
-            String tableName = "daily_data_" + symbol.replace("-", "_");
-            String sql = "SELECT * FROM " + tableName + " WHERE date = (SELECT MAX(date) FROM " + tableName + ")";
+            String tableName = "daily_data_" + symbol.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase();
+            String sql = "SELECT * FROM `" + tableName + "` WHERE date = (SELECT MAX(date) FROM `" + tableName + "`)";
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(sql)) {
                 if (rs.next()) {

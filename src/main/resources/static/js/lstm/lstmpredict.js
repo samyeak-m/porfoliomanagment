@@ -13,14 +13,41 @@ class StockDropdown {
   }
 
   async loadStockSymbols() {
-    try {
-      const response = await fetch("/api/lstm/stock-symbols");
-      if (response.ok) {
-        this.stockSymbols = await response.json();
+    const DEBOUNCE_MS = 300;
+    this._debounceTimer = null;
+
+    this.handleInput = (e) => {
+      const query = e.target.value.trim().toUpperCase();
+      if (this._debounceTimer) clearTimeout(this._debounceTimer);
+
+      if (!query) {
+        this.stockSymbols = [];
+        this.hideDropdown();
+        return;
       }
-    } catch (error) {
-      console.error("Error loading stock symbols:", error);
-    }
+
+      this._debounceTimer = setTimeout(async () => {
+        try {
+          const resp = await fetch(`/api/stock/symbols?q=${encodeURIComponent(query)}&limit=20`);
+          if (!resp.ok) {
+            this.hideDropdown();
+            return;
+          }
+          const list = await resp.json();
+          // Keep only symbols that start with the typed prefix
+          const symbols = (Array.isArray(list) ? list : [])
+            .filter(s => typeof s === 'string' && s.toUpperCase().startsWith(query))
+            .slice(0, 10);
+
+          this.stockSymbols = symbols;
+          this.renderDropdown(symbols);
+          this.selectedIndex = -1;
+        } catch (err) {
+          console.error('Error fetching symbols:', err);
+          this.hideDropdown();
+        }
+      }, DEBOUNCE_MS);
+    };
   }
 
   bindEvents() {
@@ -149,7 +176,6 @@ class StockDropdown {
     if (this.dropdownContainer.children.length > 0) {
       this.dropdownContainer.style.display = "block";
       const inputRect = this.stockInput.getBoundingClientRect();
-      this.dropdownContainer.style.position = "fixed";
       this.dropdownContainer.style.width = inputRect.width + "px";
     }
   }
@@ -277,6 +303,17 @@ class CompactPredictionForm {
 let stockDropdown;
 let formHandler;
 document.addEventListener("DOMContentLoaded", function () {
-  stockDropdown = new StockDropdown();
-  formHandler = new CompactPredictionForm();
+  // Only init dropdown if inputs exist (works on predict and VaR pages)
+  const inputEl = document.getElementById("stockSymbol");
+  const listEl = document.getElementById("stockDropdownList");
+  if (inputEl && listEl) {
+    stockDropdown = new StockDropdown();
+    // expose globally for inline onclick handlers
+    window.stockDropdown = stockDropdown;
+  }
+  // Only init prediction form on predict page
+  const formEl = document.getElementById("predict-form");
+  if (formEl) {
+    formHandler = new CompactPredictionForm();
+  }
 });

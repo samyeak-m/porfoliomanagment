@@ -2,11 +2,8 @@ package com.stockmanagment.porfoliomanagment.controller;
 
 import java.io.File;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +18,6 @@ import com.stockmanagment.porfoliomanagment.dto.PredictionRequestDTO;
 import com.stockmanagment.porfoliomanagment.dto.PredictionResponseDTO;
 import com.stockmanagment.porfoliomanagment.service.LstmService;
 import com.stockmanagment.porfoliomanagment.service.nepse.VarCalculationService;
-import com.stockmanagment.porfoliomanagment.service.nepse.lstm.database.DatabaseHelper;
 
 @RestController
 @RequestMapping("/api/lstm")
@@ -155,23 +151,6 @@ public class PredictionController {
     @GetMapping("/training-progress")
     public Map<String, Object> getTrainingProgress() {
         return lstmService.getCurrentTrainingProgress();
-    }
-
-    @GetMapping("/stock-symbols")
-    public List<String> getStockSymbols() {
-        try {
-            DatabaseHelper dbHelper = new DatabaseHelper();
-            List<String> symbols = dbHelper.getAllStockTableNames();
-
-            return symbols.stream()
-                    .map(String::toUpperCase)
-                    .sorted()
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            System.err.println("Error fetching stock symbols: " + e.getMessage());
-            return new ArrayList<>();
-        }
     }
 
     private Map<String, Object> getMemoryUsage() {

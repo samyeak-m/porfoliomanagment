@@ -113,7 +113,7 @@ public class DatabaseHelper {
     public List<double[]> loadStockData(String tableName) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
 
-        String normalizedTableName = tableName.toLowerCase();
+        String normalizedTableName = tableName.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase();
         String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + " ORDER BY date";
 
         try (Connection conn = connect();
@@ -164,7 +164,7 @@ public class DatabaseHelper {
     public List<double[]> loadStockDataAfterDate(String tableName, LocalDate afterDate) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
 
-        String normalizedTableName = tableName.toLowerCase();
+        String normalizedTableName = tableName.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase();
         String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName +
                 " WHERE date > ? ORDER BY date";
 
@@ -217,7 +217,7 @@ public class DatabaseHelper {
     // Load the last N rows (ascending by date) for a symbol's table
     public List<double[]> loadLastNStockData(String tableName, int n) throws SQLException {
         List<double[]> stockData = new ArrayList<>();
-        String normalizedTableName = tableName.toLowerCase();
+        String normalizedTableName = tableName.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase();
         String query = "SELECT date, close, high, low, open FROM daily_data_" + normalizedTableName + " ORDER BY date DESC LIMIT ?";
 
         try (Connection conn = connect();
@@ -344,5 +344,41 @@ public class DatabaseHelper {
             }
         }
         System.out.println("=== END DEBUG ===");
+    }
+
+    // Return stock symbols whose table names start with the given prefix (case-insensitive), limited
+    public List<String> getStockSymbolsByPrefix(String prefix, int limit) throws SQLException {
+        if (prefix == null) return Collections.emptyList();
+        // sanitize: allow only letters, numbers, underscore
+        String clean = prefix.replaceAll("[^A-Za-z0-9_]", "").toLowerCase();
+        if (clean.isEmpty()) return Collections.emptyList();
+
+        String likePattern = "daily_data_" + clean + "%";
+        String sql = "SELECT table_name FROM information_schema.tables " +
+                     "WHERE table_schema = DATABASE() AND table_name LIKE ? " +
+                     "ORDER BY table_name ASC LIMIT ?";
+
+        List<String> symbols = new ArrayList<>();
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, likePattern);
+            ps.setInt(2, Math.max(1, Math.min(100, limit)));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String tableName = rs.getString(1);
+                    if (tableName != null && tableName.startsWith("daily_data_")) {
+                        String sym = tableName.substring("daily_data_".length()).toLowerCase();
+                        // optional: keep only those with valid close price (consistent with getAllStockTableNames)
+                        if (hasValidClosePrice(sym)) {
+                            symbols.add(sym.toUpperCase());
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Error fetching symbols by prefix: " + clean, e);
+            throw e;
+        }
+        return symbols;
     }
 }

@@ -101,8 +101,8 @@ public class VarCalculationService {
     }
 
     public List<Double> getClosePrices(String stockSymbol) {
-        String tableName = "daily_data_" + stockSymbol.toLowerCase();
-        String query = "SELECT close FROM " + tableName + " ORDER BY date ASC";
+        String tableSafe = "daily_data_" + stockSymbol.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase();
+        String query = "SELECT close FROM " + tableSafe + " ORDER BY date ASC";
         return (List<Double>) entityManager.createNativeQuery(query)
                 .getResultList()
                 .stream()

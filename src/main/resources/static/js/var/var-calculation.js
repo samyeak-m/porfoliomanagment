@@ -377,3 +377,94 @@ document.addEventListener("DOMContentLoaded", function () {
   varStockDropdown = new VarStockDropdown();
   varFormHandler = new VarCalculationForm();
 });
+
+// Lightweight debounced symbol dropdown for VaR page
+(function initVarSymbolDropdown() {
+  const input = document.getElementById('stockSymbol');
+  const list = document.getElementById('stockDropdownList');
+  if (!input || !list) return;
+
+  let debounceTimer = null;
+  let symbolsCache = [];
+
+  function hideDropdown() {
+    list.style.display = 'none';
+    list.innerHTML = '';
+  }
+
+  function showDropdown() {
+    if (list.children.length > 0) list.style.display = 'block';
+  }
+
+  function renderDropdown(items) {
+    if (!items || items.length === 0) {
+      hideDropdown();
+      return;
+    }
+    list.innerHTML = items
+      .map(s => `
+        <div class="dropdown-item" data-symbol="${s}" onmousedown="event.preventDefault()">
+          <div class="stock-icon">${s.substring(0,2)}</div>
+          <span class="stock-symbol">${s}</span>
+        </div>
+      `)
+      .join('');
+    showDropdown();
+  }
+
+  async function fetchSymbols(q) {
+    try {
+      const resp = await fetch(`/api/stock/symbols?q=${encodeURIComponent(q)}&limit=20`);
+      if (!resp.ok) { hideDropdown(); return; }
+      const listJson = await resp.json();
+      symbolsCache = (Array.isArray(listJson) ? listJson : [])
+        .filter(s => typeof s === 'string' && s.toUpperCase().startsWith(q))
+        .slice(0, 10);
+      renderDropdown(symbolsCache);
+    } catch (e) {
+      console.error('Var symbols fetch error:', e);
+      hideDropdown();
+    }
+  }
+
+  input.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toUpperCase();
+    if (debounceTimer) clearTimeout(debounceTimer);
+    if (!q) { symbolsCache = []; hideDropdown(); return; }
+    debounceTimer = setTimeout(() => fetchSymbols(q), 300);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hideDropdown();
+  });
+
+  input.addEventListener('focus', () => {
+    const q = input.value.trim().toUpperCase();
+    if (q) fetchSymbols(q);
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      // allow click to register before hiding
+      hideDropdown();
+    }, 120);
+  });
+
+  // Click selection via event delegation
+  list.addEventListener('click', (e) => {
+    const item = e.target.closest('.dropdown-item');
+    if (!item) return;
+    const sym = item.getAttribute('data-symbol');
+    if (sym) {
+      input.value = sym;
+      hideDropdown();
+      input.dispatchEvent(new Event('change'));
+      input.focus();
+    }
+  });
+
+  // Click outside to close
+  document.addEventListener('click', (e) => {
+    if (!list.contains(e.target) && !input.contains(e.target)) hideDropdown();
+  });
+})();

@@ -27,10 +27,7 @@ public class VarCalculationController {
     @Autowired
     public VarCalculationController(VarCalculationService varCalculationService) {
         this.varCalculationService = varCalculationService;
-    }
-
-    @GetMapping("/stock-symbols")
-    public ResponseEntity<List<String>> getStockSymbols() {
+    }ResponseEntity<List<String>> getStockSymbols() {
         long startTime = System.currentTimeMillis();
         
         try {

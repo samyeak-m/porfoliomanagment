@@ -50,8 +50,8 @@ public class DailyDataService {
 
     @PostConstruct
     public void onStartup() {
-        // System.out.println("Server has started. Preparing to start scraping...");
-        // startScrapingAfterDelay();
+        System.out.println("Server has started. Preparing to start scraping...");
+        startScrapingAfterDelay();
     }
 
     public void startScrapingAfterDelay() {
@@ -115,6 +115,11 @@ public class DailyDataService {
         return Base64.getEncoder().encodeToString(hash);
     }
 
+    // NEW: sanitize only slash to underscore for daily_data storage
+    private String sanitizeSymbol(String symbol) {
+        return symbol == null ? null : symbol.replace('/', '_');
+    }
+
     private void processAndStoreData(String content) {
         Document doc = Jsoup.parse(content);
         for (Element row : doc.select("table.table tr")) {
@@ -124,16 +129,18 @@ public class DailyDataService {
                 continue;
             }
 
-            String symbol = cells.get(1).text().trim();
+            String rawSymbol = cells.get(1).text().trim();
+            String symbol = sanitizeSymbol(rawSymbol); // CHANGED: use sanitized symbol
+
             double open = parseDouble(cells.get(3).text());
             double high = parseDouble(cells.get(4).text());
             double low = parseDouble(cells.get(5).text());
             double close = parseDouble(cells.get(6).text());
 
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
-
             LocalDate localDate = LocalDate.from(timestamp.toLocalDateTime());
 
+            // CHANGED: find by sanitized symbol
             DailyData existingData = customDailyDataRepository.getBySymbol(symbol);
 
             if (existingData != null) {
@@ -146,7 +153,7 @@ public class DailyDataService {
             } else {
                 DailyData dailyData = new DailyData();
                 dailyData.setDate(localDate);
-                dailyData.setSymbol(symbol);
+                dailyData.setSymbol(symbol); // CHANGED: save sanitized symbol
                 dailyData.setOpen(Double.valueOf(open));
                 dailyData.setHigh(Double.valueOf(high));
                 dailyData.setLow(Double.valueOf(low));
