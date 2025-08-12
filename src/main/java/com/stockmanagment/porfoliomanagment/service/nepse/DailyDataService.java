@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
@@ -217,4 +218,19 @@ public class DailyDataService {
         return dailyDataRepository.findPricesForLastNDays(stockSymbol, days);
     }
 
+    // NEW: Safe fetch of latest OHLC from shared daily_data table
+    @Transactional(readOnly = true)
+    public DailyData getLatestSharedDailyData(String rawSymbol) {
+        if (rawSymbol == null || rawSymbol.isBlank()) return null;
+        String symbol = rawSymbol.replace('/', '_').toLowerCase();
+        // Use custom repo if it already has a method, otherwise add one native query
+        try {
+            return customDailyDataRepository.getLatestBySymbol(symbol);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // OPTIONAL: remove any legacy per-symbol access before calling process/store
+    // If you had a method that looked up daily_data_<symbol>, refactor it to call getLatestSharedDailyData()
 }

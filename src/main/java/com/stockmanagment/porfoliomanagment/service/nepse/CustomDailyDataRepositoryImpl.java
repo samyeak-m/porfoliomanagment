@@ -2,118 +2,106 @@ package com.stockmanagment.porfoliomanagment.service.nepse;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.Query;
+import jakarta.persistence.TypedQuery;
 
 @Repository
+@Transactional(readOnly = true)
 public class CustomDailyDataRepositoryImpl implements CustomDailyDataRepository {
 
     @PersistenceContext
     private EntityManager entityManager;
 
+    private String sanitize(String symbol) {
+        return symbol == null ? null : symbol.replace('/', '_').toLowerCase();
+    }
+
     @Override
     public DailyData getBySymbol(String symbol) {
-        String tableName = "daily_data_" + symbol;
-        String queryStr = "SELECT date, open, high, low, close FROM " + tableName + " ORDER BY date DESC LIMIT 1";
-        Query query = entityManager.createNativeQuery(queryStr);
+        if (symbol == null || symbol.isBlank()) return null;
+        String sym = sanitize(symbol);
 
-        List<Object[]> resultList = query.getResultList();
+        // Prefer today’s row if present
+        List<DailyData> today = entityManager.createQuery(
+                "SELECT d FROM DailyData d WHERE LOWER(d.symbol)=:sym AND d.date=:today ORDER BY d.date DESC",
+                DailyData.class)
+                .setParameter("sym", sym)
+                .setParameter("today", LocalDate.now())
+                .setMaxResults(1)
+                .getResultList();
+        if (!today.isEmpty()) return today.get(0);
 
-        if (!resultList.isEmpty()) {
-            Object[] row = resultList.get(0);
-
-            DailyData dailyData = new DailyData();
-
-            java.sql.Date sqlDate = (java.sql.Date) row[0];
-            LocalDate localDate = sqlDate.toLocalDate();
-            dailyData.setDate(localDate);
-
-            dailyData.setOpen(Double.valueOf((Double) row[1]));
-            dailyData.setHigh(Double.valueOf((Double) row[2]));
-            dailyData.setLow(Double.valueOf((Double) row[3]));
-            dailyData.setClose(Double.valueOf((Double) row[4]));
-
-            return dailyData;
-        } else {
-            return null;
-        }
+        // Fallback: latest historical
+        return entityManager.createQuery(
+                "SELECT d FROM DailyData d WHERE LOWER(d.symbol)=:sym ORDER BY d.date DESC",
+                DailyData.class)
+                .setParameter("sym", sym)
+                .setMaxResults(1)
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
     public List<DailyData> getByDateRangeAndSymbol(String symbol, Timestamp startDate, Timestamp endDate) {
-        String tableName = (symbol == null || symbol.isEmpty()) ? "daily_data" : "daily_data_" + symbol;
-
-        String queryStr = "SELECT date, open, high, low, close FROM " + tableName + " WHERE date BETWEEN :startDate AND :endDate";
-
-        Query query = entityManager.createNativeQuery(queryStr);
-
-        query.setParameter("startDate", startDate);
-        query.setParameter("endDate", endDate);
-
-        List<Object[]> resultList = query.getResultList();
-        List<DailyData> dailyDataList = new ArrayList<>();
-
-        for (Object[] row : resultList) {
-            DailyData dailyData = new DailyData();
-            java.sql.Date sqlDate = (java.sql.Date) row[0];
-            LocalDate localDate = sqlDate.toLocalDate();
-            dailyData.setDate(localDate);
-            dailyData.setOpen(Double.valueOf((Double) row[1]));
-            dailyData.setHigh(Double.valueOf((Double) row[2]));
-            dailyData.setLow(Double.valueOf((Double) row[3]));
-            dailyData.setClose(Double.valueOf((Double) row[4]));
-
-            dailyDataList.add(dailyData);
+        StringBuilder jpql = new StringBuilder("SELECT d FROM DailyData d WHERE 1=1");
+        boolean hasSymbol = symbol != null && !symbol.isBlank();
+        if (hasSymbol) {
+            jpql.append(" AND LOWER(d.symbol)=:sym");
         }
+        if (startDate != null) {
+            jpql.append(" AND d.date >= :startDate");
+        }
+        if (endDate != null) {
+            jpql.append(" AND d.date <= :endDate");
+        }
+        jpql.append(" ORDER BY d.date ASC, d.symbol ASC");
 
-        return dailyDataList;
+        TypedQuery<DailyData> q = entityManager.createQuery(jpql.toString(), DailyData.class);
+
+        if (hasSymbol) q.setParameter("sym", sanitize(symbol));
+        if (startDate != null) q.setParameter("startDate", startDate.toLocalDateTime().toLocalDate());
+        if (endDate != null) q.setParameter("endDate", endDate.toLocalDateTime().toLocalDate());
+
+        return q.getResultList();
     }
 
     @Override
     public List<DailyData> getByDate() {
-        String queryStr = "SELECT date, open, high, low, close, symbol FROM daily_data";
-        Query query = entityManager.createNativeQuery(queryStr);
-
-        List<Object[]> resultList = query.getResultList();
-        List<DailyData> dailyDataList = new ArrayList<>();
-
-        for (Object[] row : resultList) {
-            DailyData dailyData = new DailyData();
-            java.sql.Date sqlDate = (java.sql.Date) row[0];
-            LocalDate localDate = sqlDate.toLocalDate();
-            dailyData.setDate(localDate);
-            dailyData.setOpen(Double.valueOf(((Number) row[1]).doubleValue()));
-            dailyData.setHigh(Double.valueOf(((Number) row[2]).doubleValue()));
-            dailyData.setLow(Double.valueOf(((Number) row[3]).doubleValue()));
-            dailyData.setClose(Double.valueOf(((Number) row[4]).doubleValue()));
-            dailyData.setSymbol(row[5].toString());
-
-            dailyDataList.add(dailyData);
-        }
-
-        return dailyDataList;
+        return entityManager.createQuery(
+                "SELECT d FROM DailyData d WHERE d.date=:today ORDER BY d.symbol ASC",
+                DailyData.class)
+                .setParameter("today", LocalDate.now())
+                .getResultList();
     }
-
 
     @Override
     public List<String> getAllSymbolsFromDailyData() {
-        String queryStr = "SELECT DISTINCT symbol FROM daily_data";
-        Query query = entityManager.createNativeQuery(queryStr);
-
-        List<String> symbols = query.getResultList();
-
-        return symbols;
+        return entityManager.createQuery(
+                        "SELECT DISTINCT d.symbol FROM DailyData d ORDER BY d.symbol ASC",
+                        String.class)
+                .getResultList();
     }
 
-
-
+    // Added for DailyDataService.getLatestSharedDailyData()
+    public DailyData getLatestBySymbol(String symbol) {
+        if (symbol == null || symbol.isBlank()) return null;
+        return entityManager.createQuery(
+                        "SELECT d FROM DailyData d WHERE LOWER(d.symbol)=:sym ORDER BY d.date DESC",
+                        DailyData.class)
+                .setParameter("sym", sanitize(symbol))
+                .setMaxResults(1)
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
+    }
 }

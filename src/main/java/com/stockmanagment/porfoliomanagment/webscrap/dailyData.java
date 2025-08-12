@@ -306,70 +306,25 @@ public class dailyData {
     }
 
     private static void storeLastUpdateOfTheDay() throws SQLException {
-        Map<String, Integer> updateCounts = new HashMap<>();  // Initialize map to store update counts for each table
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS))
-        {
-            int count=0;
-            String selectSql = "SELECT DISTINCT symbol, date FROM yearly_data";
-            try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(selectSql)) {
-                while (rs.next()) {
-                    String symbol = rs.getString("symbol");
-                    LocalDate date = rs.getDate("date").toLocalDate();
-                    String tableName = "daily_data_" + symbol.replaceAll("\\W", "_").toLowerCase();  // Normalize to lowercase
-
-                    if (!tableExists(conn, tableName)) {
-                        String createTableSql = "CREATE TABLE " + tableName + " (" +
-                                "date DATE," +
-                                "open DOUBLE," +
-                                "high DOUBLE," +
-                                "low DOUBLE," +
-                                "close DOUBLE," +
-                                "PRIMARY KEY (date)" +
-                                ")";
-                        try (Statement createStmt = conn.createStatement()) {
-                            createStmt.executeUpdate(createTableSql);
-                            System.out.println("\u001B[32m"+"Table created: " + tableName+"\u001B[37m");
-
-                        }
-                    }
-
-                    String insertSql = "INSERT INTO " + tableName + " (date, open, high, low, close) " +
-                            "SELECT date, open, high, low, close FROM yearly_data WHERE symbol = ? AND date = ? " +
-                            "ON DUPLICATE KEY UPDATE " +
-                            "open = VALUES(open), high = VALUES(high), low = VALUES(low), close = VALUES(close)";
-                    try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-                        pstmt.setString(1, symbol);
-                        pstmt.setObject(2, date);
-                        int rowsAffected = pstmt.executeUpdate();
-                        if (rowsAffected > 0) {
-                            updateCounts.put(tableName, updateCounts.getOrDefault(tableName, 0) + 1);  // Increment count for tableName
-                        }
-                        System.out.println("Table updated: " + tableName + " Updated count: " + updateCounts.get(tableName));
-                    }
-                }
-            }
-            System.out.println("Total updates for each table:");
-            for (Map.Entry<String, Integer> entry : updateCounts.entrySet()) {
-                System.out.println("Table " + entry.getKey() + " updated " + entry.getValue() + " times");
-            }
-        }
+        // CHANGED: No longer replicate data into per-symbol tables.
+        // Old per-symbol table creation skipped to avoid 1146 errors.
+        // Intentionally left blank; rely solely on shared daily_data table.
     }
 
     private static Map<String, Object> getLastData(String symbol) throws SQLException {
+        // CHANGED: Use shared table instead of per-symbol table
         Map<String, Object> data = new HashMap<>();
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
-            String tableName = "daily_data_" + symbol.replaceAll("[^A-Za-z0-9_]", "_").toLowerCase();
-            String sql = "SELECT * FROM `" + tableName + "` WHERE date = (SELECT MAX(date) FROM `" + tableName + "`)";
-            try (Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-                if (rs.next()) {
-                    ResultSetMetaData rsmd = rs.getMetaData();
-                    int columnCount = rsmd.getColumnCount();
-                    for (int i = 1; i <= columnCount; i++) {
-                        String name = rsmd.getColumnName(i);
-                        Object value = rs.getObject(i);
-                        data.put(name, value);
+            String sql = "SELECT * FROM daily_data WHERE LOWER(symbol)=? ORDER BY date DESC LIMIT 1";
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, symbol.toLowerCase());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        ResultSetMetaData md = rs.getMetaData();
+                        int cols = md.getColumnCount();
+                        for (int i = 1; i <= cols; i++) {
+                            data.put(md.getColumnLabel(i), rs.getObject(i));
+                        }
                     }
                 }
             }
