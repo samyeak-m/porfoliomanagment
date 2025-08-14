@@ -1,5 +1,8 @@
 package com.stockmanagment.porfoliomanagment;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -7,11 +10,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.core.env.Environment;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import org.springframework.scheduling.annotation.EnableScheduling; // ADD
 
 @SpringBootApplication
 @EnableConfigurationProperties
+@EnableScheduling // ADD: enable @Scheduled
 @EntityScan(basePackages = {
 		"com.stockmanagment.porfoliomanagment.model.nepse",
 		"com.stockmanagment.porfoliomanagment.model.portfolio"

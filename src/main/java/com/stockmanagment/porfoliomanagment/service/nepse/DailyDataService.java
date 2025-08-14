@@ -7,7 +7,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.time.DayOfWeek;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -39,7 +38,6 @@ public class DailyDataService {
 
     private static final LocalTime START_OF_DAY = LocalTime.of(10, 45);
     private static final LocalTime END_OF_DAY = LocalTime.of(15, 15);
-    private static final LocalDate today = LocalDate.now();
     private String lastHash = "";
     private LocalDateTime lastUpdateOfTheDay;
 
@@ -49,38 +47,39 @@ public class DailyDataService {
     @Autowired
     private CustomDailyDataRepository customDailyDataRepository;
 
+    // NEW: log gating to avoid spam during closed hours
+    private LocalDate lastClosedLogDay = null;
+    private boolean openNotified = false;
+
     @PostConstruct
     public void onStartup() {
         System.out.println("Server has started. Preparing to start scraping...");
-        startScrapingAfterDelay();
     }
 
-    public void startScrapingAfterDelay() {
-        new Thread(() -> {
-            try {
-                Thread.sleep(10000);
-                scrapeAndStoreDailyData();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-    @Scheduled(fixedRate = 60000)
+    // Run every 5 minutes, non-blocking
+    @Scheduled(cron = "0 */5 * * * *")
     public void scrapeAndStoreDailyData() {
         try {
+            LocalDate today = LocalDate.now();
             LocalTime now = LocalTime.now();
-            DayOfWeek dayOfWeek = today.getDayOfWeek();
 
-            if (dayOfWeek == DayOfWeek.FRIDAY || dayOfWeek == DayOfWeek.SATURDAY) {
-                System.out.println("Market is closed on Friday and Saturday. Sleeping until Sunday.");
-                Thread.sleep(getSleepDurationUntilSunday());
+            if (!isMarketOpen(today, now)) {
+                // Print once per day when closed, with next open time, then stay silent
+                if (lastClosedLogDay == null || !lastClosedLogDay.isEqual(today)) {
+                    LocalDateTime nextOpen = getNextMarketOpen(today, now);
+                    System.out.println("Market is closed. Next open at: " +
+                            nextOpen.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    lastClosedLogDay = today;
+                    openNotified = false; // reset for next open notification
+                }
                 return;
             }
 
-            if (now.isBefore(START_OF_DAY) || now.isAfter(END_OF_DAY)) {
-                System.out.println("Market is closed. Skipping scraping.");
-                return;
+            // Market is open; notify once at first open tick
+            if (!openNotified) {
+                System.out.println("Market is open. Starting scraping cycle.");
+                openNotified = true;
+                lastClosedLogDay = null; // reset the closed-day marker
             }
 
             String content = fetchData(BASE_URL);
@@ -93,10 +92,9 @@ public class DailyDataService {
                 System.out.println("Data updated at: "
                         + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             } else {
-                System.out.println("Data unchanged. Skipping update.");
+                // Optional: keep silent to avoid noise during open hours when unchanged
+                // System.out.println("Data unchanged. Skipping update.");
             }
-
-            Thread.sleep(getSleepDuration());
         } catch (Exception e) {
             System.err.println("Error during data scraping: " + e.getMessage());
         }
@@ -172,22 +170,6 @@ public class DailyDataService {
         }
     }
 
-    private long getSleepDuration() {
-        LocalTime now = LocalTime.now();
-        if (now.isBefore(START_OF_DAY)) {
-            return Duration.between(now, START_OF_DAY).toMillis();
-        } else if (now.isAfter(END_OF_DAY)) {
-            return Duration.between(now, START_OF_DAY.plusHours(24)).toMillis();
-        }
-        return 60000;
-    }
-
-    private long getSleepDurationUntilSunday() {
-        LocalDate today = LocalDate.now();
-        LocalDate nextSunday = today.with(DayOfWeek.SUNDAY);
-        return Duration.between(LocalDateTime.now(), LocalDateTime.of(nextSunday, START_OF_DAY)).toMillis();
-    }
-
     public void storeLastUpdateOfTheDay() {
         lastUpdateOfTheDay = LocalDateTime.now();
     }
@@ -233,4 +215,28 @@ public class DailyDataService {
 
     // OPTIONAL: remove any legacy per-symbol access before calling process/store
     // If you had a method that looked up daily_data_<symbol>, refactor it to call getLatestSharedDailyData()
+
+    // NEW: market hours helper
+    private boolean isMarketOpen(LocalDate date, LocalTime time) {
+        DayOfWeek dow = date.getDayOfWeek();
+        boolean weekend = (dow == DayOfWeek.FRIDAY || dow == DayOfWeek.SATURDAY);
+        if (weekend) return false;
+        return !time.isBefore(START_OF_DAY) && !time.isAfter(END_OF_DAY);
+    }
+
+    // NEW: compute next market open datetime (Sun–Thu 10:45)
+    private LocalDateTime getNextMarketOpen(LocalDate date, LocalTime time) {
+        LocalDate d = date;
+        if (time.isAfter(END_OF_DAY)) {
+            d = d.plusDays(1);
+        }
+        if (time.isBefore(START_OF_DAY)) {
+            // same day is fine if not weekend
+        }
+        // advance to next working day (Sun–Thu)
+        while (d.getDayOfWeek() == DayOfWeek.FRIDAY || d.getDayOfWeek() == DayOfWeek.SATURDAY) {
+            d = d.plusDays(1);
+        }
+        return LocalDateTime.of(d, START_OF_DAY);
+    }
 }
