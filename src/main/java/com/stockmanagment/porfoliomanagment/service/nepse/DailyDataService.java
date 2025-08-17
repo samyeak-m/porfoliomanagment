@@ -5,6 +5,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.DriverManager;
 import java.sql.Timestamp;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -71,6 +72,9 @@ public class DailyDataService {
                             nextOpen.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
                     lastClosedLogDay = today;
                     openNotified = false; // reset for next open notification
+                    
+                    // NEW: Replicate to per-symbol tables when market closes
+                    replicateToPerSymbolTables();
                 }
                 return;
             }
@@ -91,9 +95,6 @@ public class DailyDataService {
                 storeLastUpdateOfTheDay();
                 System.out.println("Data updated at: "
                         + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            } else {
-                // Optional: keep silent to avoid noise during open hours when unchanged
-                // System.out.println("Data unchanged. Skipping update.");
             }
         } catch (Exception e) {
             System.err.println("Error during data scraping: " + e.getMessage());
@@ -129,7 +130,7 @@ public class DailyDataService {
             }
 
             String rawSymbol = cells.get(1).text().trim();
-            String symbol = sanitizeSymbol(rawSymbol); // CHANGED: use sanitized symbol
+            String symbol = sanitizeSymbol(rawSymbol);
 
             double open = parseDouble(cells.get(3).text());
             double high = parseDouble(cells.get(4).text());
@@ -139,9 +140,8 @@ public class DailyDataService {
             Timestamp timestamp = Timestamp.valueOf(LocalDateTime.now());
             LocalDate localDate = LocalDate.from(timestamp.toLocalDateTime());
 
-            // CHANGED: find by sanitized symbol
+            // EXISTING: Update daily_data
             DailyData existingData = customDailyDataRepository.getBySymbol(symbol);
-
             if (existingData != null) {
                 existingData.setOpen(Double.valueOf(open));
                 existingData.setHigh(Double.valueOf(high));
@@ -152,13 +152,47 @@ public class DailyDataService {
             } else {
                 DailyData dailyData = new DailyData();
                 dailyData.setDate(localDate);
-                dailyData.setSymbol(symbol); // CHANGED: save sanitized symbol
+                dailyData.setSymbol(symbol);
                 dailyData.setOpen(Double.valueOf(open));
                 dailyData.setHigh(Double.valueOf(high));
                 dailyData.setLow(Double.valueOf(low));
                 dailyData.setClose(Double.valueOf(close));
                 dailyDataRepository.save(dailyData);
             }
+
+            // NEW: Also store in live_data for real-time tracking
+            storeLiveData(symbol, open, high, low, close, timestamp);
+        }
+    }
+
+    // NEW: Store live data with current timestamp
+    private void storeLiveData(String symbol, double open, double high, double low, double close, Timestamp timestamp) {
+        try (var conn = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/porfoliomanagment_nepse", 
+                "root", "")) {
+            
+            String sql = """
+                INSERT INTO live_data (symbol, open, high, low, close, timestamp, date)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    high = GREATEST(high, VALUES(high)),
+                    low = LEAST(low, VALUES(low)),
+                    close = VALUES(close),
+                    timestamp = VALUES(timestamp)
+                """;
+                
+            try (var pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, symbol);
+                pstmt.setDouble(2, open);
+                pstmt.setDouble(3, high);
+                pstmt.setDouble(4, low);
+                pstmt.setDouble(5, close);
+                pstmt.setTimestamp(6, timestamp);
+                pstmt.setDate(7, new java.sql.Date(timestamp.getTime()));
+                pstmt.executeUpdate();
+            }
+        } catch (Exception e) {
+            System.err.println("Error storing live data for " + symbol + ": " + e.getMessage());
         }
     }
 
@@ -238,5 +272,74 @@ public class DailyDataService {
             d = d.plusDays(1);
         }
         return LocalDateTime.of(d, START_OF_DAY);
+    }
+
+    // NEW: Replicate shared daily_data to per-symbol tables when market closes
+    private void replicateToPerSymbolTables() {
+        try {
+            List<String> symbols = customDailyDataRepository.getAllSymbolsFromDailyData();
+            System.out.println("Replicating data to " + symbols.size() + " per-symbol tables...");
+            
+            for (String symbol : symbols) {
+                createAndPopulateSymbolTable(symbol);
+            }
+            
+            System.out.println("Data replication completed successfully.");
+        } catch (Exception e) {
+            System.err.println("Error during data replication: " + e.getMessage());
+        }
+    }
+
+    // Create and populate per-symbol table with data from shared table
+    private void createAndPopulateSymbolTable(String symbol) {
+        String sanitizedSymbol = sanitizeSymbol(symbol);
+        String tableName = "daily_data_" + sanitizedSymbol;
+        
+        String createTableSQL = """
+            CREATE TABLE IF NOT EXISTS %s (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                date DATE NOT NULL,
+                open DECIMAL(10,2),
+                high DECIMAL(10,2),
+                low DECIMAL(10,2),
+                close DECIMAL(10,2),
+                UNIQUE KEY unique_date (date)
+            )
+            """.formatted(tableName);
+        
+        String insertDataSQL = """
+            INSERT INTO %s (date, open, high, low, close)
+            SELECT date, open, high, low, close 
+            FROM daily_data 
+            WHERE LOWER(symbol) = ?
+            ON DUPLICATE KEY UPDATE
+                open = VALUES(open),
+                high = VALUES(high),
+                low = VALUES(low),
+                close = VALUES(close)
+            """.formatted(tableName);
+        
+        try (var conn = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/porfoliomanagment_nepse", 
+                "root", "")) {
+            
+            // Create table
+            try (var stmt = conn.createStatement()) {
+                stmt.executeUpdate(createTableSQL);
+            }
+            
+            // Insert/update data
+            try (var pstmt = conn.prepareStatement(insertDataSQL)) {
+                pstmt.setString(1, sanitizedSymbol.toLowerCase());
+                int rowsAffected = pstmt.executeUpdate();
+                
+                if (rowsAffected > 0) {
+                    System.out.println("Updated " + rowsAffected + " rows for " + tableName);
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error creating/updating table " + tableName + ": " + e.getMessage());
+        }
     }
 }

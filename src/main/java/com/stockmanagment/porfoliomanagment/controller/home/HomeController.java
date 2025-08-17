@@ -103,14 +103,14 @@ public class HomeController {
                                @RequestParam(required = false, defaultValue = "25") int days,
                                Model model) {
         if (stockSymbol != null && !stockSymbol.isEmpty()) {
-            String normalizedStockSymbol = stockSymbol.toLowerCase();
+            // FIXED: Sanitize symbol for database lookup
+            String normalizedStockSymbol = stockSymbol.replace('/', '_').toLowerCase();
             try {
                 double confidenceLevel = varCalculationService.calculateDynamicConfidenceLevel(normalizedStockSymbol);
                 varCalculationService.calculateAndStoreVaR(normalizedStockSymbol, days, confidenceLevel, false);
                 double var = varCalculationService.calculateVaR(normalizedStockSymbol, days, confidenceLevel);
                 double initialStockPrice = varCalculationService.getInitialStockPrice(normalizedStockSymbol);
 
-                // Removed LSTM prediction integration
                 double varPercentage = (var / initialStockPrice) * 100;
 
                 model.addAttribute("var", String.format("%.2f", var));
