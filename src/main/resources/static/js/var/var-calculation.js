@@ -8,22 +8,7 @@ class VarStockDropdown {
   }
 
   async init() {
-    await this.loadStockSymbols();
     this.bindEvents();
-  }
-
-  async loadStockSymbols() {
-    try {
-      const response = await fetch("/api/var/stock-symbols");
-      if (response.ok) {
-        this.stockSymbols = await response.json();
-        console.log("Loaded stock symbols:", this.stockSymbols.length);
-      } else {
-        console.error("Failed to load stock symbols");
-      }
-    } catch (error) {
-      console.error("Error loading stock symbols:", error);
-    }
   }
 
   bindEvents() {

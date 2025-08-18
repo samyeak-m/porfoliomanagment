@@ -103,11 +103,14 @@ public class HomeController {
                                @RequestParam(required = false, defaultValue = "25") int days,
                                Model model) {
         if (stockSymbol != null && !stockSymbol.isEmpty()) {
-            // FIXED: Sanitize symbol for database lookup
             String normalizedStockSymbol = stockSymbol.replace('/', '_').toLowerCase();
             try {
+                // ENHANCED: Use dynamic confidence level
                 double confidenceLevel = varCalculationService.calculateDynamicConfidenceLevel(normalizedStockSymbol);
+                
+                // Calculate and store VaR (will use cache if already calculated today)
                 varCalculationService.calculateAndStoreVaR(normalizedStockSymbol, days, confidenceLevel, false);
+                
                 double var = varCalculationService.calculateVaR(normalizedStockSymbol, days, confidenceLevel);
                 double initialStockPrice = varCalculationService.getInitialStockPrice(normalizedStockSymbol);
 
@@ -118,8 +121,17 @@ public class HomeController {
                 model.addAttribute("initialStockPrice", String.format("%.2f", initialStockPrice));
                 model.addAttribute("varPercentage", String.format("%.2f", varPercentage));
                 model.addAttribute("stockSymbol", normalizedStockSymbol);
+                
+                // ENHANCED: Add dynamic metrics to display
+                double dynamicMean = varCalculationService.calculateDynamicMeanReturn(normalizedStockSymbol, days);
+                double dynamicVolatility = varCalculationService.calculateDynamicVolatility(normalizedStockSymbol, days, dynamicMean);
+                
+                model.addAttribute("meanReturn", String.format("%.4f", dynamicMean * 100));
+                model.addAttribute("volatility", String.format("%.2f", dynamicVolatility * 100));
+                
             } catch (RuntimeException e) {
-                model.addAttribute("error", e.getMessage());
+                model.addAttribute("error", "Error calculating VaR: " + e.getMessage());
+                System.err.println("VaR calculation error for " + stockSymbol + ": " + e.getMessage());
             }
         }
         return "var/calculate-var";

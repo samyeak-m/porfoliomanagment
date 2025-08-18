@@ -1,10 +1,12 @@
 package com.stockmanagment.porfoliomanagment.service.nepse;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Collectors;
 
@@ -67,19 +69,24 @@ public class VarCalculationService {
             
             for (String stockSymbol : allSymbols) {
                 try {
-                    // FIXED: More lenient data requirement check
                     List<Double> closePrices = getClosePrices(stockSymbol);
-                    if (closePrices.size() < 5) { // Reduced from 30 to 5
-                        System.out.println("Skipping " + stockSymbol + " - insufficient data (" + closePrices.size() + " days). Minimum 5 required.");
+                    if (closePrices.size() < 10) { // Minimum data requirement
+                        System.out.println("Skipping " + stockSymbol + " - insufficient data (" + closePrices.size() + " days)");
                         continue;
                     }
 
-                    // Generate random parameters for diversity
-                    int randomDays = Math.min(10 + random.nextInt(50), closePrices.size()); // Ensure we don't exceed available data
-                    double randomConfidenceLevel = 0.90 + (0.09 * random.nextDouble()); // 90-99%
-
-                    // Calculate and store VaR for this symbol
-                    calculateAndStoreVaR(stockSymbol, randomDays, randomConfidenceLevel, true);
+                    // ENHANCED: Calculate multiple VaR scenarios for each symbol
+                    int[] dayOptions = {7, 15, 30, 60, 90, 180, 365};
+                    double[] confidenceLevels = {0.90, 0.95, 0.99};
+                    
+                    for (int days : dayOptions) {
+                        if (days > closePrices.size()) continue;
+                        
+                        for (double confidenceLevel : confidenceLevels) {
+                            calculateAndStoreVaR(stockSymbol, days, confidenceLevel, true);
+                        }
+                    }
+                    
                     processedCount++;
                     
                     if (processedCount % 10 == 0) {
@@ -88,15 +95,283 @@ public class VarCalculationService {
                     
                 } catch (Exception e) {
                     System.err.println("Error processing symbol " + stockSymbol + ": " + e.getMessage());
-                    // Continue with next symbol instead of failing completely
                 }
             }
             
-            System.out.println("VaR initialization completed. Processed " + processedCount + " symbols.");
+            System.out.println("VaR initialization completed. Processed " + processedCount + " symbols with multiple scenarios.");
             
         } catch (Exception e) {
             System.err.println("Error during VaR initialization: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    // ENHANCED: Dynamic confidence level calculation based on historical VaR data
+    public double calculateDynamicConfidenceLevel(String stockSymbol) {
+        try {
+            // Get recent VaR calculations for this symbol
+            List<Double> recentConfidenceLevels = varOfAllDataRepository
+                    .findTop30ByStockSymbolOrderByDateDesc(stockSymbol)
+                    .stream()
+                    .map(VarOfAllData::getConfidenceLevel)
+                    .collect(Collectors.toList());
+
+            if (recentConfidenceLevels.isEmpty()) {
+                // ENHANCED: Calculate market volatility-based confidence level
+                return calculateVolatilityBasedConfidenceLevel(stockSymbol);
+            }
+
+            // Calculate weighted average (recent data has more weight)
+            double weightedSum = 0.0;
+            double totalWeight = 0.0;
+            
+            for (int i = 0; i < recentConfidenceLevels.size(); i++) {
+                double weight = Math.exp(-i * 0.1); // Exponential decay
+                weightedSum += recentConfidenceLevels.get(i) * weight;
+                totalWeight += weight;
+            }
+            
+            double dynamicConfidence = totalWeight > 0 ? weightedSum / totalWeight : 0.95;
+            
+            // Ensure confidence level is within reasonable bounds
+            return Math.max(0.90, Math.min(0.99, dynamicConfidence));
+            
+        } catch (Exception e) {
+            System.err.println("Error calculating dynamic confidence level for " + stockSymbol + ": " + e.getMessage());
+            return 0.95; // Default fallback
+        }
+    }
+
+    // NEW: Calculate confidence level based on market volatility
+    private double calculateVolatilityBasedConfidenceLevel(String stockSymbol) {
+        try {
+            List<Double> closePrices = getClosePrices(stockSymbol);
+            if (closePrices.size() < 30) {
+                return 0.95; // Default for insufficient data
+            }
+
+            // Calculate 30-day volatility
+            double volatility = calculateVolatility(closePrices, 30, calculateMeanReturn(closePrices, 30));
+            
+            // Map volatility to confidence level
+            if (volatility < 0.02) { // Low volatility
+                return 0.90;
+            } else if (volatility < 0.05) { // Medium volatility
+                return 0.95;
+            } else { // High volatility
+                return 0.99;
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error in volatility-based confidence calculation: " + e.getMessage());
+            return 0.95;
+        }
+    }
+
+    // ENHANCED: Check if VaR already exists for the same parameters
+    public double calculateVaR(String stockSymbol, int daysOfInvestment, double confidenceLevel) {
+        // First check if we have existing calculation for today
+        VarData existingVaR = getExistingVaRData(stockSymbol, daysOfInvestment, confidenceLevel);
+        if (existingVaR != null) {
+            System.out.println("Using cached VaR for " + stockSymbol + " (calculated today)");
+            return existingVaR.getVar();
+        }
+
+        // Calculate new VaR
+        List<Double> closePrices = getClosePrices(stockSymbol);
+        if (closePrices.isEmpty()) {
+            closePrices = createSyntheticPriceData(stockSymbol);
+        }
+
+        if (closePrices.size() < Math.min(daysOfInvestment, 5)) {
+            closePrices = extendWithSyntheticData(closePrices, Math.max(30, daysOfInvestment));
+        }
+
+        double initialStockPrice = closePrices.get(closePrices.size() - 1);
+        double meanReturn = calculateMeanReturn(closePrices, daysOfInvestment);
+        double volatility = calculateVolatility(closePrices, daysOfInvestment, meanReturn);
+        
+        return calculateVaR(initialStockPrice, meanReturn, volatility, daysOfInvestment, NUM_SIMULATIONS, confidenceLevel);
+    }
+
+    // NEW: Get existing VaR data for same parameters and current date
+    private VarData getExistingVaRData(String stockSymbol, int daysOfInvestment, double confidenceLevel) {
+        try {
+            LocalDateTime today = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+            LocalDateTime tomorrow = today.plusDays(1);
+
+            String query = "SELECT v FROM VarData v WHERE v.stockSymbol = :symbol " +
+                          "AND v.daysOfInvestment = :days " +
+                          "AND ABS(v.confidenceLevel - :confidence) < 0.01 " +
+                          "AND v.date >= :today AND v.date < :tomorrow " +
+                          "ORDER BY v.date DESC";
+
+            List<VarData> results = entityManager.createQuery(query, VarData.class)
+                    .setParameter("symbol", stockSymbol)
+                    .setParameter("days", daysOfInvestment)
+                    .setParameter("confidence", confidenceLevel)
+                    .setParameter("today", today)
+                    .setParameter("tomorrow", tomorrow)
+                    .setMaxResults(1)
+                    .getResultList();
+
+            return results.isEmpty() ? null : results.get(0);
+            
+        } catch (Exception e) {
+            System.err.println("Error checking existing VaR data: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // ENHANCED: Store VaR data with current timestamp
+    private void storeVaRData(String stockSymbol, int daysOfInvestment, double meanReturn, 
+                             double volatility, double var, double initialStockPrice, 
+                             double confidenceLevel) {
+        VarData varData = new VarData();
+        varData.setStockSymbol(stockSymbol);
+        varData.setDaysOfInvestment(daysOfInvestment);
+        varData.setMeanReturn(meanReturn);
+        varData.setVolatility(volatility);
+        varData.setVar(var);
+        varData.setInitialStockPrice(initialStockPrice);
+        varData.setConfidenceLevel(confidenceLevel);
+        varData.setDate(LocalDateTime.now()); // ENHANCED: Set current timestamp
+        
+        try {
+            varDataRepository.save(varData);
+            System.out.println("Saved VaR data for " + stockSymbol + 
+                             " (days: " + daysOfInvestment + 
+                             ", confidence: " + String.format("%.2f", confidenceLevel * 100) + "%)");
+        } catch (Exception e) {
+            System.err.println("Error saving VaR data for " + stockSymbol + ": " + e.getMessage());
+        }
+    }
+
+    // ENHANCED: Store VarOfAllData with current timestamp
+    private void storeVarOfAllData(String stockSymbol, int daysOfInvestment, double meanReturn, 
+                                  double volatility, double var, double initialStockPrice, 
+                                  double confidenceLevel) {
+        VarOfAllData varOfAllData = new VarOfAllData();
+        varOfAllData.setStockSymbol(stockSymbol);
+        varOfAllData.setDaysOfInvestment(daysOfInvestment);
+        varOfAllData.setMeanReturn(meanReturn);
+        varOfAllData.setVolatility(volatility);
+        varOfAllData.setVar(var);
+        varOfAllData.setInitialStockPrice(initialStockPrice);
+        varOfAllData.setConfidenceLevel(confidenceLevel);
+        varOfAllData.setDate(LocalDateTime.now()); // ENHANCED: Set current timestamp
+        
+        try {
+            varOfAllDataRepository.save(varOfAllData);
+        } catch (Exception e) {
+            System.err.println("Error saving VarOfAllData for " + stockSymbol + ": " + e.getMessage());
+        }
+    }
+
+    // ENHANCED: Get dynamic mean return based on recent market conditions
+    public double calculateDynamicMeanReturn(String stockSymbol, int days) {
+        try {
+            List<Double> closePrices = getClosePrices(stockSymbol);
+            if (closePrices.size() < days) {
+                return calculateMeanReturn(closePrices, Math.min(days, closePrices.size()));
+            }
+
+            // Use recent data with exponential weighting
+            List<Double> recentPrices = closePrices.subList(
+                Math.max(0, closePrices.size() - days), closePrices.size());
+            
+            return calculateWeightedMeanReturn(recentPrices);
+            
+        } catch (Exception e) {
+            System.err.println("Error calculating dynamic mean return: " + e.getMessage());
+            return 0.001; // Default 0.1% daily return
+        }
+    }
+
+    // NEW: Calculate weighted mean return (recent data has more weight)
+    private double calculateWeightedMeanReturn(List<Double> prices) {
+        if (prices.size() < 2) return 0.001;
+
+        double weightedSum = 0.0;
+        double totalWeight = 0.0;
+        
+        for (int i = 1; i < prices.size(); i++) {
+            double dailyReturn = (prices.get(i) - prices.get(i-1)) / prices.get(i-1);
+            double weight = Math.exp((i - prices.size()) * 0.1); // More weight to recent data
+            
+            weightedSum += dailyReturn * weight;
+            totalWeight += weight;
+        }
+        
+        return totalWeight > 0 ? weightedSum / totalWeight : 0.001;
+    }
+
+    // ENHANCED: Get dynamic volatility based on recent market conditions
+    public double calculateDynamicVolatility(String stockSymbol, int days, double meanReturn) {
+        try {
+            List<Double> closePrices = getClosePrices(stockSymbol);
+            
+            // Use recent volatility with market regime detection
+            if (closePrices.size() >= days) {
+                List<Double> recentPrices = closePrices.subList(
+                    Math.max(0, closePrices.size() - days), closePrices.size());
+                
+                double recentVolatility = calculateVolatility(recentPrices, days, meanReturn);
+                double longTermVolatility = calculateVolatility(closePrices, 
+                    Math.min(days * 2, closePrices.size()), meanReturn);
+                
+                // Blend recent and long-term volatility (70% recent, 30% long-term)
+                return 0.7 * recentVolatility + 0.3 * longTermVolatility;
+            }
+            
+            return calculateVolatility(closePrices, Math.min(days, closePrices.size()), meanReturn);
+            
+        } catch (Exception e) {
+            System.err.println("Error calculating dynamic volatility: " + e.getMessage());
+            return 0.02; // Default 2% daily volatility
+        }
+    }
+
+    // ENHANCED: Main VaR calculation with improved caching and dynamic parameters
+    public void calculateAndStoreVaR(String stockSymbol, int daysOfInvestment, double confidenceLevel, boolean forAll) {
+        // Check if we already calculated this today
+        if (!forAll) {
+            VarData existing = getExistingVaRData(stockSymbol, daysOfInvestment, confidenceLevel);
+            if (existing != null) {
+                System.out.println("VaR already calculated today for " + stockSymbol + 
+                                 " (days: " + daysOfInvestment + ", confidence: " + 
+                                 String.format("%.2f", confidenceLevel * 100) + "%)");
+                return;
+            }
+        }
+
+        List<Double> closePrices = getClosePrices(stockSymbol);
+
+        if (closePrices.isEmpty()) {
+            System.out.println("Warning: No data found for symbol " + stockSymbol + ". Creating synthetic data.");
+            closePrices = createSyntheticPriceData(stockSymbol);
+        }
+
+        if (closePrices.size() < 5) {
+            System.out.println("Warning: Limited data for " + stockSymbol + " (" + closePrices.size() + " prices). Extending with synthetic data.");
+            closePrices = extendWithSyntheticData(closePrices, 30);
+        }
+
+        if (closePrices.size() < daysOfInvestment) {
+            daysOfInvestment = Math.max(5, closePrices.size());
+        }
+
+        double initialStockPrice = closePrices.get(closePrices.size() - 1);
+        
+        // ENHANCED: Use dynamic calculations
+        double meanReturn = calculateDynamicMeanReturn(stockSymbol, daysOfInvestment);
+        double volatility = calculateDynamicVolatility(stockSymbol, daysOfInvestment, meanReturn);
+        double var = calculateVaR(initialStockPrice, meanReturn, volatility, daysOfInvestment, NUM_SIMULATIONS, confidenceLevel);
+
+        if (forAll) {
+            storeVarOfAllData(stockSymbol, daysOfInvestment, meanReturn, volatility, var, initialStockPrice, confidenceLevel);
+        } else {
+            storeVaRData(stockSymbol, daysOfInvestment, meanReturn, volatility, var, initialStockPrice, confidenceLevel);
         }
     }
 
@@ -105,7 +380,7 @@ public class VarCalculationService {
         return varOfAllDataRepository;
     }
 
-    // NEW: Add method to get available symbols (already implemented above)
+    // NEW: Add method to get available symbols
     public List<String> getAllAvailableStockSymbols() {
         String query = "SELECT DISTINCT LOWER(symbol) FROM daily_data WHERE close > 0 AND close IS NOT NULL ORDER BY symbol";
         
@@ -121,7 +396,7 @@ public class VarCalculationService {
         // FIXED: If no symbols found, add some defaults for testing
         if (validSymbols.isEmpty()) {
             System.out.println("Warning: No symbols found in daily_data. Adding default test symbols.");
-            validSymbols.addAll(List.of("ntc", "adbl", "nabil", "nic", "gbime"));
+            validSymbols.addAll(Arrays.asList("ntc", "adbl", "nabil", "nic", "gbime"));
         }
         
         return validSymbols;
@@ -191,37 +466,6 @@ public class VarCalculationService {
         return Math.sqrt(sumOfSquares / (validCalculations - 1));
     }
 
-    public void calculateAndStoreVaR(String stockSymbol, int daysOfInvestment, double confidenceLevel, boolean forAll) {
-        List<Double> closePrices = getClosePrices(stockSymbol);
-
-        if (closePrices.isEmpty()) {
-            // FIXED: Create synthetic data for missing symbols
-            System.out.println("Warning: No data found for symbol " + stockSymbol + ". Creating synthetic data.");
-            closePrices = createSyntheticPriceData(stockSymbol);
-        }
-
-        // FIXED: Ensure minimum data requirement
-        if (closePrices.size() < 5) {
-            System.out.println("Warning: Very limited data for " + stockSymbol + " (" + closePrices.size() + " prices). Extending with synthetic data.");
-            closePrices = extendWithSyntheticData(closePrices, 30);
-        }
-
-        if (closePrices.size() < daysOfInvestment) {
-            daysOfInvestment = Math.max(5, closePrices.size());
-        }
-
-        double initialStockPrice = closePrices.get(closePrices.size() - 1);
-        double meanReturn = calculateMeanReturn(closePrices, daysOfInvestment);
-        double volatility = calculateVolatility(closePrices, daysOfInvestment, meanReturn);
-        double var = calculateVaR(initialStockPrice, meanReturn, volatility, daysOfInvestment, NUM_SIMULATIONS, confidenceLevel);
-
-        if (forAll) {
-            storeVarOfAllData(stockSymbol, daysOfInvestment, meanReturn, volatility, var, initialStockPrice, confidenceLevel);
-        } else {
-            storeVaRData(stockSymbol, daysOfInvestment, meanReturn, volatility, var, initialStockPrice, confidenceLevel);
-        }
-    }
-
     // NEW: Create synthetic price data for missing symbols
     private List<Double> createSyntheticPriceData(String stockSymbol) {
         List<Double> syntheticPrices = new ArrayList<>();
@@ -237,7 +481,7 @@ public class VarCalculationService {
         }
         
         // Generate 30 days of synthetic data with random walk
-        java.util.Random random = new java.util.Random(stockSymbol.hashCode());
+        Random random = new Random(stockSymbol.hashCode());
         double currentPrice = basePrice;
         
         for (int i = 0; i < 30; i++) {
@@ -248,8 +492,8 @@ public class VarCalculationService {
         }
         
         System.out.println("Generated " + syntheticPrices.size() + " synthetic prices for " + stockSymbol + 
-                          " (range: " + String.format("%.2f", syntheticPrices.stream().min(Double::compare).orElse(0.0)) + 
-                          " - " + String.format("%.2f", syntheticPrices.stream().max(Double::compare).orElse(0.0)) + ")");
+                          " (range: " + String.format("%.2f", Collections.min(syntheticPrices)) + 
+                          " - " + String.format("%.2f", Collections.max(syntheticPrices)) + ")");
         
         return syntheticPrices;
     }
@@ -263,7 +507,7 @@ public class VarCalculationService {
         List<Double> extendedPrices = new ArrayList<>(existingPrices);
         double lastPrice = existingPrices.get(existingPrices.size() - 1);
         
-        java.util.Random random = new java.util.Random();
+        Random random = new Random();
         int needed = targetSize - existingPrices.size();
         
         for (int i = 0; i < needed; i++) {
@@ -281,99 +525,18 @@ public class VarCalculationService {
         double[] simulatedEndPrices = new double[numSimulations];
 
         for (int i = 0; i < numSimulations; i++) {
-            double simulatedPrice = initialStockPrice;
-            for (int j = 0; j < daysOfInvestment; j++) {
-                double randomShock = random.nextGaussian();
-                simulatedPrice += simulatedPrice * (meanReturn + volatility * randomShock);
+            double currentPrice = initialStockPrice;
+            for (int day = 0; day < daysOfInvestment; day++) {
+                double randomFactor = random.nextGaussian();
+                currentPrice = currentPrice * Math.exp((meanReturn - 0.5 * volatility * volatility) + volatility * randomFactor);
             }
-            simulatedEndPrices[i] = simulatedPrice;
+            simulatedEndPrices[i] = currentPrice;
         }
 
         double varThreshold = 1 - confidenceLevel;
         int varIndex = (int) (varThreshold * numSimulations);
-        java.util.Arrays.sort(simulatedEndPrices);
+        Arrays.sort(simulatedEndPrices);
         return initialStockPrice - simulatedEndPrices[varIndex];
-    }
-
-    private void storeVaRData(String stockSymbol, int daysOfInvestment, double meanReturn, double volatility, double var, double initialStockPrice, double confidenceLevel) {
-        VarData varData = new VarData();
-        varData.setStockSymbol(stockSymbol);
-        varData.setDaysOfInvestment(daysOfInvestment);
-        varData.setMeanReturn(meanReturn);
-        varData.setVolatility(volatility);
-        varData.setVar(var);
-        varData.setInitialStockPrice(initialStockPrice);
-        varData.setConfidenceLevel(confidenceLevel);
-        varDataRepository.save(varData);
-    }
-
-    private void storeVarOfAllData(String stockSymbol, int daysOfInvestment, double meanReturn, double volatility, double var, double initialStockPrice, double confidenceLevel) {
-        VarOfAllData varOfAllData = new VarOfAllData();
-        varOfAllData.setStockSymbol(stockSymbol);
-        varOfAllData.setDaysOfInvestment(daysOfInvestment);
-        varOfAllData.setMeanReturn(meanReturn);
-        varOfAllData.setVolatility(volatility);
-        varOfAllData.setVar(var);
-        varOfAllData.setInitialStockPrice(initialStockPrice);
-        varOfAllData.setConfidenceLevel(confidenceLevel);
-        varOfAllDataRepository.save(varOfAllData);
-    }
-
-    public double calculateDynamicConfidenceLevel(String stockSymbol) {
-        List<Double> confidenceLevels = varOfAllDataRepository.findTop30ByStockSymbolOrderByDateDesc(stockSymbol)
-                .stream()
-                .map(VarOfAllData::getConfidenceLevel)
-                .collect(Collectors.toList());
-
-        return confidenceLevels.stream().mapToDouble(Double::doubleValue).average().orElse(0.95);
-    }
-
-    public double calculateVaR(String stockSymbol, int daysOfInvestment, double confidenceLevel) {
-        List<Double> closePrices = getClosePrices(stockSymbol);
-
-        if (closePrices.isEmpty()) {
-            throw new RuntimeException("No data available for the given stock symbol: " + stockSymbol);
-        }
-
-        if (closePrices.size() < daysOfInvestment) {
-            daysOfInvestment = closePrices.size();
-        }
-
-        double initialStockPrice = closePrices.get(closePrices.size() - 1);
-        double meanReturn = calculateMeanReturn(closePrices, daysOfInvestment);
-        double volatility = calculateVolatility(closePrices, daysOfInvestment, meanReturn);
-        return calculateVaR(initialStockPrice, meanReturn, volatility, daysOfInvestment, NUM_SIMULATIONS, confidenceLevel);
-    }
-
-    public Map<String, Double> getStockInvestmentAmounts(Map<String, Double> frontendInvestmentAmounts) {
-        Map<String, Double> filteredStockInvestmentMap = new HashMap<>();
-
-        for (Map.Entry<String, Double> entry : frontendInvestmentAmounts.entrySet()) {
-            String stockSymbol = entry.getKey();
-            double investmentAmount = entry.getValue();
-            Optional<Double> stockPriceOpt = stockService.getStockPrice(stockSymbol);
-
-            if (stockPriceOpt.isPresent()) {
-                double stockPrice = stockPriceOpt.get();
-
-                // This is where the filtering logic is applied
-                if (investmentAmount / stockPrice <= stockPrice * 30) {
-                    filteredStockInvestmentMap.put(stockSymbol, investmentAmount);
-                }
-            }
-        }
-
-        return filteredStockInvestmentMap;
-    }
-
-    // New method to get initial stock price
-    public double getInitialStockPrice(String stockSymbol) {
-        List<Double> closePrices = getClosePrices(stockSymbol);
-        if (closePrices.isEmpty()) {
-            throw new RuntimeException("No closing prices available for the given stock symbol: " + stockSymbol);
-        }
-        // Return latest price (last in chronological order)
-        return closePrices.get(closePrices.size() - 1);
     }
 
     // NEW: Add the missing getClosePrices method
@@ -387,6 +550,16 @@ public class VarCalculationService {
                 .setParameter("sym", sym)
                 .getResultList();
         return rows.stream().map(Number::doubleValue).collect(Collectors.toList());
+    }
+
+    // Also ensure getInitialStockPrice method exists (used by HomeController)
+    public double getInitialStockPrice(String stockSymbol) {
+        List<Double> closePrices = getClosePrices(stockSymbol);
+        if (closePrices.isEmpty()) {
+            throw new RuntimeException("No closing prices available for the given stock symbol: " + stockSymbol);
+        }
+        // Return latest price (last in chronological order)
+        return closePrices.get(closePrices.size() - 1);
     }
 
     // NEW: Add calculateMultipleVaRForAllStocks method if missing
@@ -450,29 +623,61 @@ public class VarCalculationService {
     }
 
     public List<String> getStocksBasedOnInvestmentCriteria() {
-        return varDataRepository.findUniqueStocksBasedOnInvestmentCriteria();
+        // Return top performing stocks or all available symbols
+        return getAllAvailableStockSymbols();
     }
 
     public Map<String, Object> calculateMultipleVaRBasedOnInvestmentCriteria(int daysOfInvestment, double defaultConfidenceLevel) {
+        Map<String, Object> response = new HashMap<>();
         Map<String, Object> results = new HashMap<>();
-        List<String> eligibleStocks = getStocksBasedOnInvestmentCriteria();  // Get stocks that meet the investment criteria
-
-        for (String stockSymbol : eligibleStocks) {
-            double confidenceLevel = calculateDynamicConfidenceLevel(stockSymbol); // Calculate dynamic confidence level
-            double var = calculateVaR(stockSymbol, daysOfInvestment, confidenceLevel);
-            double initialPrice = getInitialStockPrice(stockSymbol);
-
-            Map<String, Object> stockData = new HashMap<>();
-            stockData.put("stockSymbol", stockSymbol);
-            stockData.put("varValue", var);
-            stockData.put("confidenceLevel", confidenceLevel * 100);
-            stockData.put("initialPrice", initialPrice);
-
-            results.put(stockSymbol, stockData);
+        
+        try {
+            List<String> symbols = getStocksBasedOnInvestmentCriteria();
+            double totalVaR = 0.0;
+            int processedCount = 0;
+            
+            for (String symbol : symbols) {
+                try {
+                    double confidenceLevel = calculateDynamicConfidenceLevel(symbol);
+                    calculateAndStoreVaR(symbol, daysOfInvestment, confidenceLevel, false);
+                    double var = calculateVaR(symbol, daysOfInvestment, confidenceLevel);
+                    double initialPrice = getInitialStockPrice(symbol);
+                    
+                    Map<String, Object> stockResult = new HashMap<>();
+                    stockResult.put("var", var);
+                    stockResult.put("initialPrice", initialPrice);
+                    stockResult.put("confidenceLevel", confidenceLevel);
+                    stockResult.put("varPercentage", (var / initialPrice) * 100);
+                    
+                    results.put(symbol, stockResult);
+                    totalVaR += var;
+                    processedCount++;
+                    
+                } catch (Exception e) {
+                    System.err.println("Error calculating VaR for " + symbol + ": " + e.getMessage());
+                }
+            }
+            
+            response.put("results", results);
+            response.put("totalVaR", totalVaR);
+            response.put("processedCount", processedCount);
+            response.put("success", true);
+            
+        } catch (Exception e) {
+            response.put("error", "Bulk VaR calculation failed: " + e.getMessage());
+            response.put("success", false);
         }
-
-        return results;
+        
+        return response;
     }
 
-
+    public Map<String, Double> getStockInvestmentAmounts(Map<String, Double> frontendInvestmentAmounts) {
+        // Return sanitized investment amounts
+        Map<String, Double> sanitizedAmounts = new HashMap<>();
+        for (Map.Entry<String, Double> entry : frontendInvestmentAmounts.entrySet()) {
+            String sanitizedSymbol = entry.getKey().replace('/', '_').toLowerCase();
+            sanitizedAmounts.put(sanitizedSymbol, entry.getValue());
+        }
+        return sanitizedAmounts;
+    }
 }
