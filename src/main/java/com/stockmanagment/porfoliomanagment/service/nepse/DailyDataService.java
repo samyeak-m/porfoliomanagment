@@ -65,25 +65,21 @@ public class DailyDataService {
             LocalTime now = LocalTime.now();
 
             if (!isMarketOpen(today, now)) {
-                // Print once per day when closed, with next open time, then stay silent
                 if (lastClosedLogDay == null || !lastClosedLogDay.isEqual(today)) {
                     LocalDateTime nextOpen = getNextMarketOpen(today, now);
                     System.out.println("Market is closed. Next open at: " +
                             nextOpen.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
                     lastClosedLogDay = today;
-                    openNotified = false; // reset for next open notification
-                    
-                    // NEW: Replicate to per-symbol tables when market closes
+                    openNotified = false;
                     replicateToPerSymbolTables();
                 }
                 return;
             }
 
-            // Market is open; notify once at first open tick
             if (!openNotified) {
                 System.out.println("Market is open. Starting scraping cycle.");
                 openNotified = true;
-                lastClosedLogDay = null; // reset the closed-day marker
+                lastClosedLogDay = null;
             }
 
             String content = fetchData(BASE_URL);

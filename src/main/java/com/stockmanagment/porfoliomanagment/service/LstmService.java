@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -59,6 +60,7 @@ public class LstmService {
     // Online learning tracking
     private final ReentrantLock onlineUpdateLock = new ReentrantLock();
     private final Map<String, Long> lastSeenTimestampBySymbol = new ConcurrentHashMap<>();
+    private final AtomicLong lastModelSaveAt = new AtomicLong(0);
 
     public LstmService(LstmConfig config) {
         this.config = config;
@@ -67,6 +69,30 @@ public class LstmService {
     @PostConstruct
     public void init() {
         lstm = LSTMNetwork.loadModel(config.getModelFilePath());
+    }
+
+    // Save only if enabled and interval elapsed
+    private void saveModelIfEnabled(String reason) {
+        if (lstm == null) return;
+
+        // block all autosaves unless explicitly enabled
+        if (!config.isAutosaveEnabled()) return;
+
+        long now = System.currentTimeMillis();
+        long last = lastModelSaveAt.get();
+        if (now - last < Math.max(10_000, config.getSaveMinIntervalMs())) return;
+
+        lstm.saveModel(config.getModelFilePath());
+        lastModelSaveAt.set(now);
+        LOGGER.info("[Model Save] " + reason + " -> " + config.getModelFilePath());
+    }
+
+    // Optional manual trigger you can call from a controller/endpoint or button
+    public void saveModelNow() {
+        if (lstm != null) {
+            lstm.saveModel(config.getModelFilePath());
+            lastModelSaveAt.set(System.currentTimeMillis());
+        }
     }
 
     public void train() {

@@ -7,7 +7,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LSTMNetwork implements Serializable {
     private double[] inputGate;
@@ -49,6 +51,9 @@ public class LSTMNetwork implements Serializable {
     private double[] dOutput;
     private double[] min;
     private double[] max;
+
+    private static final Map<String, Long> LAST_SAVE_TIME = new ConcurrentHashMap<>();
+    private static final long MIN_SAVE_INTERVAL_MS = 60_000; // 1 min guard
 
     public LSTMNetwork(int inputSize, int hiddenSize, int outputSize, int denseSize, double[] min, double[] max) {
         this.min = min;
@@ -555,12 +560,24 @@ public class LSTMNetwork implements Serializable {
     }
 
     public void saveModel(String filePath) {
-        try (FileOutputStream fileOut = new FileOutputStream(filePath);
-             ObjectOutputStream objectOut = new ObjectOutputStream(fileOut)) {
-            objectOut.writeObject(this);
+        try {
+            long now = System.currentTimeMillis();
+            Long last = LAST_SAVE_TIME.get(filePath);
+            if (last != null && (now - last) < MIN_SAVE_INTERVAL_MS) {
+                return; // skip frequent saves
+            }
+
+            java.io.File f = new java.io.File(filePath);
+            java.io.File parent = f.getParentFile();
+            if (parent != null) parent.mkdirs();
+
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(f))) {
+                oos.writeObject(this);
+            }
+
+            LAST_SAVE_TIME.put(filePath, now);
             System.out.println("Model saved successfully to: " + filePath);
         } catch (IOException e) {
-            System.err.println("Error saving model to file: " + filePath);
             e.printStackTrace();
         }
     }

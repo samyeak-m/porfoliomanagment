@@ -18,6 +18,9 @@ public class LstmConfig {
     private int retrainThresholdDays;
     private String baseDir;
     private boolean earlyStoppingEnabled = false;
+    private boolean autosaveEnabled = false;
+    private boolean autosaveOnline = false;
+    private long saveMinIntervalMs = 600000;
 
     public String getResetColor() { return "\u001B[0m"; }
     public String getGreenColor() { return "\u001B[32m"; }
@@ -79,4 +82,13 @@ public class LstmConfig {
     public void setEarlyStoppingEnabled(boolean earlyStoppingEnabled) {
         this.earlyStoppingEnabled = earlyStoppingEnabled;
     }
+
+    public boolean isAutosaveEnabled() { return autosaveEnabled; }
+    public void setAutosaveEnabled(boolean autosaveEnabled) { this.autosaveEnabled = autosaveEnabled; }
+
+    public boolean isAutosaveOnline() { return autosaveOnline; }
+    public void setAutosaveOnline(boolean autosaveOnline) { this.autosaveOnline = autosaveOnline; }
+
+    public long getSaveMinIntervalMs() { return saveMinIntervalMs; }
+    public void setSaveMinIntervalMs(long saveMinIntervalMs) { this.saveMinIntervalMs = saveMinIntervalMs; }
 }
