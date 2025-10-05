@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         data.forEach(item => {
             const formattedDate = item.date ? new Date(item.date).toISOString().split('T')[0] : null;
             const red = '#900000';
-            const blue = '#01538f';
+            const blue = '#1e293b';
             const green = '#015201';
             const white = '#f1f1f1';
 

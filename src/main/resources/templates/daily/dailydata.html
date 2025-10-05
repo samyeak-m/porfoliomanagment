@@ -7,20 +7,22 @@
   <link rel="stylesheet" href="css/daily/dailydata.css">
 </head>
 <body>
-<div th:insert="~{layout/header :: header}"></div>
+<div th:replace="~{layout/header :: header}"></div>
 <main>
   <section>
     <form id="stock-form">
-      <label for="symbol">Stock Symbol:</label>
+      <!-- added vision-label class for high visibility -->
+      <label for="symbol" class="vision-label">Stock Symbol:</label>
       <input type="text" id="symbol" name="symbol" required>
 
-      <label for="start-date">Start Date:</label>
+      <label for="start-date" class="vision-label">Start Date:</label>
       <input type="date" id="start-date" name="start-date">
 
-      <label for="end-date">End Date:</label>
+      <label for="end-date" class="vision-label">End Date:</label>
       <input type="date" id="end-date" name="end-date">
 
-      <button type="submit">Get Stock Data</button>
+      <!-- added vision-btn class and clearer text -->
+      <button type="submit" class="vision-btn" aria-label="Get Stock Data">GET STOCK DATA</button>
     </form>
   </section>
   <section id="stock-data">
