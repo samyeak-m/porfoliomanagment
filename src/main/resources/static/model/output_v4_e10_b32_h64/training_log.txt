@@ -1,0 +1,10 @@
+Epoch 1/10 (10.0%) - Acc: 0.3444, Loss: 0.6896, Val_Acc: 0.3584, Val_Loss: 0.6718, Time: 38228ms
+Epoch 2/10 (20.0%) - Acc: 0.3452, Loss: 0.6889, Val_Acc: 0.3595, Val_Loss: 0.6701, Time: 36864ms
+Epoch 3/10 (30.0%) - Acc: 0.3458, Loss: 0.6879, Val_Acc: 0.3601, Val_Loss: 0.6692, Time: 36624ms
+Epoch 4/10 (40.0%) - Acc: 0.3441, Loss: 0.6900, Val_Acc: 0.3577, Val_Loss: 0.6724, Time: 36605ms
+Epoch 5/10 (50.0%) - Acc: 0.3456, Loss: 0.6885, Val_Acc: 0.3596, Val_Loss: 0.6695, Time: 36788ms
+Epoch 6/10 (60.0%) - Acc: 0.3458, Loss: 0.6880, Val_Acc: 0.3596, Val_Loss: 0.6695, Time: 29354ms
+Epoch 7/10 (70.0%) - Acc: 0.3443, Loss: 0.6899, Val_Acc: 0.3581, Val_Loss: 0.6722, Time: 36624ms
+Epoch 8/10 (80.0%) - Acc: 0.3453, Loss: 0.6888, Val_Acc: 0.3581, Val_Loss: 0.6722, Time: 28668ms
+Epoch 9/10 (90.0%) - Acc: 0.3456, Loss: 0.6884, Val_Acc: 0.3596, Val_Loss: 0.6695, Time: 38597ms
+Epoch 10/10 (100.0%) - Acc: 0.3447, Loss: 0.6893, Val_Acc: 0.3596, Val_Loss: 0.6695, Time: 30274ms

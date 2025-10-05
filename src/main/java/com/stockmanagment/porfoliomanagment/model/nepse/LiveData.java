@@ -2,6 +2,7 @@ package com.stockmanagment.porfoliomanagment.model.nepse;
 
 import java.time.LocalDate;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -23,6 +24,7 @@ public class LiveData {
     private String symbol;
 
     
+    @Column(name = "close")
     private Double ltp;
 
     private String pointChange;

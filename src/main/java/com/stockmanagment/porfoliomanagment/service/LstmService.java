@@ -71,22 +71,6 @@ public class LstmService {
         lstm = LSTMNetwork.loadModel(config.getModelFilePath());
     }
 
-    // Save only if enabled and interval elapsed
-    private void saveModelIfEnabled(String reason) {
-        if (lstm == null) return;
-
-        // block all autosaves unless explicitly enabled
-        if (!config.isAutosaveEnabled()) return;
-
-        long now = System.currentTimeMillis();
-        long last = lastModelSaveAt.get();
-        if (now - last < Math.max(10_000, config.getSaveMinIntervalMs())) return;
-
-        lstm.saveModel(config.getModelFilePath());
-        lastModelSaveAt.set(now);
-        LOGGER.info("[Model Save] " + reason + " -> " + config.getModelFilePath());
-    }
-
     // Optional manual trigger you can call from a controller/endpoint or button
     public void saveModelNow() {
         if (lstm != null) {
@@ -1141,78 +1125,5 @@ public class LstmService {
 
         // Weighted score
         return 0.5 * dirAcc + 0.5 * closeAcc;
-    }
-
-    // Perform one online SGD step for a symbol if new ground truth exists
-    private boolean onlineUpdateForSymbol(String symbol) {
-        try {
-            if (lstm == null || lstm.getMin() == null || lstm.getMax() == null) return false;
-
-            DatabaseHelper db = new DatabaseHelper();
-            // Load enough history to compute indicators; then train on the last pair
-            List<double[]> rows = db.loadLastNStockData(symbol, 64);
-            if (rows.size() < 2) return false;
-
-            // Skip if no new data since last seen
-            long latestTs = (long) rows.get(rows.size() - 1)[5];
-            Long prevTs = lastSeenTimestampBySymbol.get(symbol.toLowerCase());
-            if (prevTs != null && latestTs <= prevTs) return false;
-
-            double[][] stockDataArray = rows.toArray(new double[0][]);
-
-            // Build features: 6 base + 12 indicators = 18
-            double[][] technicalIndicators = TechnicalIndicators.calculate(stockDataArray, 16, 3);
-            double[][] extendedData = DataPreprocessor.addFeatures(stockDataArray, technicalIndicators);
-
-            // Normalize with model's scaler
-            double[] minArr = lstm.getMin();
-            double[] maxArr = lstm.getMax();
-            double[][] normalized = DataPreprocessor.normalize(extendedData, minArr, maxArr);
-
-            // Last input and next-step target (already normalized)
-            int len = normalized.length;
-            double[] input = Arrays.copyOf(normalized[len - 2], config.getInputSize());
-            double target = normalized[len - 1][1];
-
-            // Small LR and a few micro-steps
-            double onlineLR = Math.max(1e-7, config.getTrainingRate() * 0.1);
-            int microSteps = 3;
-
-            onlineUpdateLock.lock();
-            try {
-                lstm.resetState(); // clean state for stable update
-                for (int i = 0; i < microSteps; i++) {
-                    lstm.backpropagate(input, new double[]{target}, onlineLR);
-                }
-                // Persist updated weights
-                createDirectory(config.getOutputDir());
-                lstm.saveModel(config.getModelFilePath());
-                // Mark as seen
-                lastSeenTimestampBySymbol.put(symbol.toLowerCase(), latestTs);
-            } finally {
-                onlineUpdateLock.unlock();
-            }
-            return true;
-        } catch (Exception ex) {
-            // Keep silent on logs as requested; just return false to avoid breaking scheduler
-            return false;
-        }
-    }
-
-    // Periodically check for fresh closes and apply online updates
-    @Scheduled(fixedDelay = 120000)
-    public void onlineUpdateTick() {
-        if (isTraining) return; // skip while full training is running
-        if (lstm == null || lstm.getMin() == null || lstm.getMax() == null) return;
-
-        try {
-            DatabaseHelper db = new DatabaseHelper();
-            List<String> symbols = db.getAllStockTableNames();
-            for (String symbol : symbols) {
-                onlineUpdateForSymbol(symbol);
-            }
-        } catch (Exception ignore) {
-            // no-op
-        }
     }
 }

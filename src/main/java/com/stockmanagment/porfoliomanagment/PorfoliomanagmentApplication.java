@@ -1,7 +1,8 @@
 package com.stockmanagment.porfoliomanagment;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.Inet4Address;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -30,8 +31,23 @@ public class PorfoliomanagmentApplication implements CommandLineRunner {
 	@Override
 	public void run(String... args) throws Exception {
 		try {
-			// Get the local IP address
-			String localhost = InetAddress.getLocalHost().getHostAddress();
+			// Get the first non-loopback IPv4 address
+			String localhost = "127.0.0.1";
+			Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
+			while (nics.hasMoreElements()) {
+				NetworkInterface nic = nics.nextElement();
+				if (nic.isUp() && !nic.isLoopback()) {
+					Enumeration<java.net.InetAddress> addrs = nic.getInetAddresses();
+					while (addrs.hasMoreElements()) {
+						java.net.InetAddress addr = addrs.nextElement();
+						if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
+							localhost = addr.getHostAddress();
+							break;
+						}
+					}
+				}
+				if (!localhost.equals("127.0.0.1")) break;
+			}
 
 			// Get the server port
 			String serverPort = environment.getProperty("server.port");
@@ -47,7 +63,7 @@ public class PorfoliomanagmentApplication implements CommandLineRunner {
 			System.out.println("\t Local: " + protocol + "://localhost:" + serverPort);
 			System.out.println("\t External: " + protocol + "://" + localhost + ":" + serverPort);
 			System.out.println();
-		} catch (UnknownHostException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
