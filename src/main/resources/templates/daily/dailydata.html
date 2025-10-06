@@ -8,10 +8,8 @@
 </head>
 <body>
 <div th:replace="~{layout/header :: header}"></div>
-<main>
-  <section>
+<section class="form-con">
     <form id="stock-form">
-      <!-- added vision-label class for high visibility -->
       <label for="symbol" class="vision-label">Stock Symbol:</label>
       <input type="text" id="symbol" name="symbol" required>
 
@@ -21,10 +19,10 @@
       <label for="end-date" class="vision-label">End Date:</label>
       <input type="date" id="end-date" name="end-date">
 
-      <!-- added vision-btn class and clearer text -->
       <button type="submit" class="vision-btn" aria-label="Get Stock Data">GET STOCK DATA</button>
     </form>
   </section>
+<main>
   <section id="stock-data">
   </section>
 </main>

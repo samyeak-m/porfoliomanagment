@@ -1,12 +1,19 @@
-main {
+main,.form-con {
     background: rgba(255,255,255,0.06);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border-radius: 12px;
-    margin: 6.5rem auto;
+    margin: 1rem auto;
     width: 90dvw;
     box-shadow: 0 8px 30px rgba(0,0,0,0.25);
     padding: 1.5rem 1rem 2rem 1rem;
+}
+.form-con{
+    margin-top:6.5rem;
+}
+
+main{
+    height:90dvh;
 }
 
 form {
@@ -104,34 +111,29 @@ input[type="date"] {
 #stock-data table {
     width: 100%;
     border-collapse: collapse;
-    /* allow background (body/main) to show through */
-    background: transparent; /* was rgba(255,255,255,0.03) */
+    background: transparent;
     color: #f1f1f1;
     border-radius: 6px;
     overflow: hidden;
 }
 
-/* make headers/cells default transparent so gradient shows */
 #stock-data th,
 #stock-data td {
     padding: 0.6rem;
     border: 1px solid rgba(255,255,255,0.06);
     text-align: left;
-    background: transparent; /* ensure no opaque fill */
+    background: transparent;
 }
 
-/* keep header slightly translucent if you want contrast */
 #stock-data th {
     width: 75px;
-    background-color: rgba(255,255,255,0.04); /* low opacity so gradient visible */
+    background-color: rgba(255,255,255,0.04);
 }
 
-/* helper classes for colored close cells (use rgba for translucency) */
 .close-red { background: rgba(144, 0, 0, 0.85); color: #fff; }
 .close-green { background: rgba(1, 82, 1, 0.85); color: #fff; }
 .close-blue { background: rgba(1, 83, 143, 0.85); color: #fff; }
 
-/* Ensure small screens layout remains usable */
 @media (max-width: 900px) {
     form {
         flex-direction: column;
