@@ -32,11 +32,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         let url = '/api/daily-data/data';
         const params = [];
 
-        if (symbol) params.push(`symbol=${symbol}`);
-        if (startDate) params.push(`startDate=${startDate}`);
-        if (endDate) params.push(`endDate=${endDate}`);
+        if (symbol) params.push(`symbol=${encodeURIComponent(symbol)}`);
+        if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
+        if (endDate) params.push(`endDate=${encodeURIComponent(endDate)}`);
 
-        if (params.length > 0) {
+        // If only symbol provided (no dates) call the shared-table endpoint to avoid per-symbol native-table logic
+        if (symbol && !startDate && !endDate) {
+            url = `/api/daily-data/shared-by-symbol?symbol=${encodeURIComponent(symbol)}`;
+        } else if (params.length > 0) {
             url += `?${params.join('&')}`;
         }
 

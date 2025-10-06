@@ -1,7 +1,9 @@
 package com.stockmanagment.porfoliomanagment.service.nepse;
 
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.stereotype.Repository;
@@ -53,25 +55,64 @@ public class CustomDailyDataRepositoryImpl implements CustomDailyDataRepository 
 
     @Override
     public List<DailyData> getByDateRangeAndSymbol(String symbol, Timestamp startDate, Timestamp endDate) {
+        LocalDate sd = startDate == null ? null : startDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate ed = endDate == null ? null : endDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+        if (symbol != null && !symbol.isBlank()) {
+            String sym = sanitize(symbol);
+            String tableName = "daily_data_" + sym;
+
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> tables = entityManager.createNativeQuery("SHOW TABLES LIKE :tbl")
+                    .setParameter("tbl", tableName)
+                    .getResultList();
+
+            if (tables != null && !tables.isEmpty()) {
+                StringBuilder sql = new StringBuilder("SELECT `date`, `open`, `high`, `low`, `close` FROM ").append(tableName).append(" WHERE 1=1");
+                if (sd != null) sql.append(" AND `date` >= :start");
+                if (ed != null) sql.append(" AND `date` <= :end");
+                sql.append(" ORDER BY `date` ASC");
+
+                jakarta.persistence.Query nativeQ = entityManager.createNativeQuery(sql.toString());
+                if (sd != null) nativeQ.setParameter("start", Date.valueOf(sd));
+                if (ed != null) nativeQ.setParameter("end", Date.valueOf(ed));
+
+                @SuppressWarnings("unchecked")
+                java.util.List<Object[]> rows = nativeQ.getResultList();
+
+                java.util.List<DailyData> result = new java.util.ArrayList<>(rows.size());
+                for (Object[] row : rows) {
+                    DailyData dd = new DailyData();
+                    if (row.length > 0 && row[0] != null) {
+                        if (row[0] instanceof java.sql.Date) {
+                            dd.setDate(((java.sql.Date) row[0]).toLocalDate());
+                        } else if (row[0] instanceof java.util.Date) {
+                            dd.setDate(new java.sql.Date(((java.util.Date) row[0]).getTime()).toLocalDate());
+                        }
+                    }
+                    dd.setOpen(toDoubleSafe(row, 1));
+                    dd.setHigh(toDoubleSafe(row, 2));
+                    dd.setLow(toDoubleSafe(row, 3));
+                    dd.setClose(toDoubleSafe(row, 4));
+                    dd.setSymbol(symbol == null ? null : symbol.toUpperCase());
+                    result.add(dd);
+                }
+                return result;
+            }
+        }
+
+        // Fallback: shared table (JPQL) — existing behavior
         StringBuilder jpql = new StringBuilder("SELECT d FROM DailyData d WHERE 1=1");
         boolean hasSymbol = symbol != null && !symbol.isBlank();
-        if (hasSymbol) {
-            jpql.append(" AND LOWER(d.symbol)=:sym");
-        }
-        if (startDate != null) {
-            jpql.append(" AND d.date >= :startDate");
-        }
-        if (endDate != null) {
-            jpql.append(" AND d.date <= :endDate");
-        }
+        if (hasSymbol) jpql.append(" AND LOWER(d.symbol)=:sym");
+        if (sd != null) jpql.append(" AND d.date >= :startDate");
+        if (ed != null) jpql.append(" AND d.date <= :endDate");
         jpql.append(" ORDER BY d.date ASC, d.symbol ASC");
 
         TypedQuery<DailyData> q = entityManager.createQuery(jpql.toString(), DailyData.class);
-
         if (hasSymbol) q.setParameter("sym", sanitize(symbol));
-        if (startDate != null) q.setParameter("startDate", startDate.toLocalDateTime().toLocalDate());
-        if (endDate != null) q.setParameter("endDate", endDate.toLocalDateTime().toLocalDate());
-
+        if (sd != null) q.setParameter("startDate", sd);
+        if (ed != null) q.setParameter("endDate", ed);
         return q.getResultList();
     }
 
@@ -103,5 +144,17 @@ public class CustomDailyDataRepositoryImpl implements CustomDailyDataRepository 
                 .getResultStream()
                 .findFirst()
                 .orElse(null);
+    }
+
+    private double toDoubleSafe(Object[] row, int idx) {
+        if (row == null || idx >= row.length) return 0.0;
+        Object o = row[idx];
+        if (o == null) return 0.0;
+        if (o instanceof Number) return ((Number) o).doubleValue();
+        try {
+            return Double.parseDouble(o.toString());
+        } catch (Exception e) {
+            return 0.0;
+        }
     }
 }

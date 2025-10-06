@@ -17,12 +17,18 @@ import org.springframework.web.bind.annotation.RestController;
 import com.stockmanagment.porfoliomanagment.model.nepse.DailyData;
 import com.stockmanagment.porfoliomanagment.repository.nepse.CustomDailyDataRepository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 @RestController
 @RequestMapping("/api/daily-data")
 public class DailyDataController {
 
     @Autowired
     private CustomDailyDataRepository customDailyDataRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @GetMapping("/symbol/{symbol}")
     public ResponseEntity<DailyData> getBySymbol(@PathVariable String symbol) {
@@ -82,6 +88,23 @@ public class DailyDataController {
         }
     }
 
+    /**
+     * Always read from shared daily_data table (JPA entity) for the given symbol.
+     * Use this endpoint when the client provides only symbol (no date range).
+     */
+    @GetMapping("/shared-by-symbol")
+    public ResponseEntity<List<DailyData>> getSharedDailyDataBySymbol(@RequestParam("symbol") String symbol) {
+        if (symbol == null || symbol.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        String sym = symbol.replace('/', '_').toLowerCase();
+        List<DailyData> list = entityManager.createQuery(
+                "SELECT d FROM DailyData d WHERE LOWER(d.symbol)=:sym ORDER BY d.date ASC",
+                DailyData.class)
+                .setParameter("sym", sym)
+                .getResultList();
+        return ResponseEntity.ok(list);
+    }
 
 //    // Trigger data scraping manually
 //    @PostMapping("/scrape")
