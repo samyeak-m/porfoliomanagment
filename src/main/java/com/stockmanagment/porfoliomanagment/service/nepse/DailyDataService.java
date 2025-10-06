@@ -161,30 +161,28 @@ public class DailyDataService {
         }
     }
 
-    // NEW: Store live data with current timestamp
+    // NEW: Store live data with current date (use `date` column, not `timestamp`)
     private void storeLiveData(String symbol, double open, double high, double low, double close, Timestamp timestamp) {
         try (var conn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306/porfoliomanagment_nepse", 
+                "jdbc:mysql://localhost:3306/porfoliomanagment_nepse",
                 "root", "")) {
-            
+
             String sql = """
-                INSERT INTO live_data (symbol, open, high, low, close, timestamp, date)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO live_data (symbol, open, high, low, close, `date`)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     high = GREATEST(high, VALUES(high)),
-                    low = LEAST(low, VALUES(low)),
-                    close = VALUES(close),
-                    timestamp = VALUES(timestamp)
+                    low  = LEAST(low,  VALUES(low)),
+                    close= VALUES(close)
                 """;
-                
+
             try (var pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, symbol);
                 pstmt.setDouble(2, open);
                 pstmt.setDouble(3, high);
                 pstmt.setDouble(4, low);
                 pstmt.setDouble(5, close);
-                pstmt.setTimestamp(6, timestamp);
-                pstmt.setDate(7, new java.sql.Date(timestamp.getTime()));
+                pstmt.setDate(6, new java.sql.Date(timestamp.getTime())); // store into `date`
                 pstmt.executeUpdate();
             }
         } catch (Exception e) {
