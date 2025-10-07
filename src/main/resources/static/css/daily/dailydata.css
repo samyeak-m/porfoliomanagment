@@ -103,7 +103,6 @@ input[type="date"] {
 #stock-data {
     display: flex;
     flex-flow: row nowrap;
-    margin-top: 2rem;
     justify-content: center;
     align-items: center;
 }
