@@ -11,11 +11,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.core.env.Environment;
-import org.springframework.scheduling.annotation.EnableScheduling; // ADD
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableConfigurationProperties
-@EnableScheduling // ADD: enable @Scheduled
+@EnableScheduling
 @EntityScan(basePackages = {
 		"com.stockmanagment.porfoliomanagment.model.nepse",
 		"com.stockmanagment.porfoliomanagment.model.portfolio"
@@ -31,7 +31,6 @@ public class PorfoliomanagmentApplication implements CommandLineRunner {
 	@Override
 	public void run(String... args) throws Exception {
 		try {
-			// Get the first non-loopback IPv4 address
 			String localhost = "127.0.0.1";
 			Enumeration<NetworkInterface> nics = NetworkInterface.getNetworkInterfaces();
 			while (nics.hasMoreElements()) {
@@ -49,19 +48,18 @@ public class PorfoliomanagmentApplication implements CommandLineRunner {
 				if (!localhost.equals("127.0.0.1")) break;
 			}
 
-			// Get the server port
 			String serverPort = environment.getProperty("server.port");
 
-			// Determine whether SSL is enabled
 			boolean isSslEnabled = environment.getProperty("server.ssl.enabled", Boolean.class, false);
 
-			// Use "https" if SSL is enabled, otherwise use "http"
 			String protocol = isSslEnabled ? "https" : "http";
 
-			// Print the local and external server URLs
+			String localUrl = protocol + "://localhost:" + serverPort;
+			String externalUrl = protocol + "://" + localhost + ":" + serverPort;
+
 			System.out.println();
-			System.out.println("\t Local: " + protocol + "://localhost:" + serverPort);
-			System.out.println("\t External: " + protocol + "://" + localhost + ":" + serverPort);
+			System.out.println("\t Local: " + localUrl);
+			System.out.println("\t External: " + externalUrl);
 			System.out.println();
 		} catch (Exception e) {
 			e.printStackTrace();
