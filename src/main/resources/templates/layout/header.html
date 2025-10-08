@@ -19,11 +19,11 @@
             <a th:href="@{/lstm/predict}" th:classappend="${#strings.contains(currentURI, '/lstm/predict') ? 'active' : ''}">
                 <span class="nav-icon ai-icon"></span>AI Analysis
             </a>
-            <a th:href="@{/lstm/train}" th:classappend="${#strings.contains(currentURI, '/lstm/train') ? 'active' : ''}">
-                <span class="nav-icon training-icon"></span>AI Training
-            </a>
             <a th:href="@{/var}" th:classappend="${#strings.contains(currentURI, '/var') ? 'active' : ''}">
                 <span class="nav-icon risk-icon"></span>Risk Analysis
+            </a>
+            <a th:href="@{/trading/chart}" th:classappend="${#strings.contains(currentURI, '/trading/chart') ? 'active' : ''}">
+                <span class="nav-icon trading-icon"></span>Trading Chart
             </a>
         </nav>
         
