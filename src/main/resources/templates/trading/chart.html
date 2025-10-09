@@ -29,6 +29,48 @@
                 </select>
             </div>
 
+            <!-- NEW: Technical Indicators Checkboxes -->
+            <div class="control-group indicators-group">
+                <label>Technical Indicators:</label>
+                <div class="indicators-checkboxes">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="sma20" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">SMA 20</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="sma50" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">SMA 50</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="ema12" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">EMA 12</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="ema26" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">EMA 26</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="bollinger" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">Bollinger Bands</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="rsi" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">RSI</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="macd" name="indicators">
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">MACD</span>
+                    </label>
+                </div>
+            </div>
+
             <button id="refreshBtn" class="control-btn control-btn-small">
                 <span>Refresh</span>
             </button>
@@ -38,6 +80,7 @@
         <div class="chart-wrapper">
             <div id="mainChart" class="chart-area"></div>
             <div id="volumeChart" class="volume-area"></div>
+            <div id="indicatorChart" class="indicator-area"></div>
         </div>
 
         <!-- Stock Info Panel -->
